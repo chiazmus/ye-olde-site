@@ -100,3 +100,7 @@ aside .card {
     margin-bottom: 5px;
     font-size: 1.25rem;  
 }
+
+iframe {
+    margin: 0.5rem;
+}
