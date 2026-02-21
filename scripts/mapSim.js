@@ -4,6 +4,8 @@ let tick = 0;
 let ships = [];
 let cannonBalls = [];
 let removeList = [];
+canvas.width = 2048;
+canvas.height = 1024;
 
 const loadImage = (url) => {
     return new Promise((resolve) => {
@@ -40,9 +42,11 @@ class CannonBall {
     update (allShips) {
         if (this.shootingUp) this.y -= 1.5;
         else this.y += 1.5;
-        if (this.y < 0 || this.y > canvas.height) removeList.push(this);
+        if (this.y < 0 || this.y > canvas.height) {
+            removeList.push(this);
+        }
         allShips.forEach(ship => {
-            if (Math.abs(ship.x - this.x) + Math.abs(ship.y - this.y) < 10) {
+            if ((Math.abs(ship.x - this.x) + Math.abs(ship.y - this.y)) < 20) {
                 removeList.push(this);
                 ship.state = 'dead';
             }
@@ -51,7 +55,7 @@ class CannonBall {
 
     draw (ctx) {
         ctx.fillStyle = '#202020';
-        ctx.fillRect(Math.floor(this.x), Math.floor(this.y), 2, 2);
+        ctx.fillRect(Math.floor(this.x), Math.floor(this.y), 3, 3);
     }
 }
 
@@ -80,7 +84,7 @@ class Ship {
 
             if (this.type == 'pirate') {
                 let angle = degToRad((tick) % 360);
-                let radius = 100 + (Math.random() * 20);
+                let radius = 150 + (Math.random() * 40);
                 let destx = this.target.x + Math.cos(angle) * radius;
                 let desty = this.target.y + Math.sin(angle) * radius;
                 this.destination = [destx, desty];
@@ -99,9 +103,9 @@ class Ship {
             }
             allShips.forEach(ship => {
                 if (ship !== this) {
-                    if (Math.abs(this.x - ship.x) < 5 && Math.abs(this.y - ship.y) < 300 && tick % 15 == 0) {
+                    if (Math.abs(this.x - ship.x) < 10 && Math.abs(this.y - ship.y) < 500 && tick % 15 == 0) {
                         this.state = 'fire';
-                        let mod = (this.y > ship.y) ? -10 : 10;
+                        let mod = (this.y > ship.y) ? -20 : 20;
                         cannonBalls.push(new CannonBall(this.x+8, this.y+mod, (mod < 0) ? true : false));
                     }
                 }
@@ -114,11 +118,11 @@ class Ship {
         switch (this.state) {
             case 'moving':
                 if (tick % 60 > 30){
-                    if (this.flipped) drawFlipped(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
-                    else ctx.drawImage(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
+                    if (this.flipped) drawFlipped(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    else ctx.drawImage(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
                 } else { 
-                    if (this.flipped) drawFlipped(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
-                    else ctx.drawImage(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
+                    if (this.flipped) drawFlipped(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    else ctx.drawImage(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
                 }
 
                 if (Math.random() < 0.0002) this.state = 'kraken';
@@ -133,7 +137,7 @@ class Ship {
                     this.x = Math.random() * canvas.width;
                     this.y = Math.random() * canvas.height;
                 } else {
-                ctx.drawImage(window.assets.kraken, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
+                ctx.drawImage(window.assets.kraken, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
                 }
                 break;
             case 'fire':
@@ -143,8 +147,8 @@ class Ship {
                     this.state = 'moving';
                     this.ani = 0;
                 } else {
-                    if (this.flipped) drawFlipped(window.assets.firing, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
-                    else ctx.drawImage(window.assets.firing, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
+                    if (this.flipped) drawFlipped(window.assets.firing, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    else ctx.drawImage(window.assets.firing, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
                 }
                 break;
             case 'dead':
@@ -157,7 +161,7 @@ class Ship {
                     this.x = Math.random() * canvas.width;
                     this.y = Math.random() * canvas.height;
                 } else {
-                    ctx.drawImage(window.assets.sunk, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 16, 16);
+                    ctx.drawImage(window.assets.sunk, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
                 }
                 break;
             default:
@@ -213,18 +217,17 @@ function animationLoop() {
         ship.update(ships, tick);
         ship.draw(ctx, tick);
     });
-    removeList.forEach(item => {
+    while (removeList.length > 0) {
+        let item = removeList.pop();
         if (cannonBalls.includes(item)) {
-            cannonBalls.splice(cannonBalls.indexOf(item));
+            cannonBalls.splice(cannonBalls.indexOf(item), 1);
         }
-    });
+    }
     removeList = [];
     requestAnimationFrame(animationLoop);
 }
 
 async function initCanvas() {
-    canvas.width = 2048;
-    canvas.height = 1024;
     ctx.imageSmoothingEnabled = false;
     const [ship1, kraken, firing, sunk] = await Promise.all([
         loadImage('./assets/ship-1.png'),
