@@ -31,7 +31,7 @@ nav {
 nav a, .card a {
     text-decoration: none;
     color: black;
-    background-color: antiquewhite;
+    background-color: #faebd7;
     border: 1px solid black;
     box-shadow: 3px 3px;
     padding: 0.25rem;
@@ -104,4 +104,15 @@ aside .card {
     text-align: center;
     margin-bottom: 5px;
     font-size: 1.25rem;  
+}
+
+canvas {
+    position: fixed;   /* Stays in place during scroll */
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: 2400px; /* Display size */
+  height: 1200px;
+  image-rendering: pixelated; /* Chrome/Edge/Safari */
+  image-rendering: crisp-edges; /* Firefox */
 }
