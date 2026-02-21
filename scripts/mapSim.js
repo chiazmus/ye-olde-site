@@ -203,10 +203,10 @@ async function initCanvas() {
     canvas.height = 1024;
     ctx.imageSmoothingEnabled = false;
     const [ship1, kraken, firing, sunk] = await Promise.all([
-        loadImage('../assets/ship-1.png'),
-        loadImage('../assets/kraken-ship.png'),
-        loadImage('../assets/ship-firing.png'),
-        loadImage('../assets/sunk-ship.png'),
+        loadImage('./assets/ship-1.png'),
+        loadImage('./assets/kraken-ship.png'),
+        loadImage('./assets/ship-firing.png'),
+        loadImage('./assets/sunk-ship.png'),
     ]);
 
     // Store them globally or pass them to your loop
