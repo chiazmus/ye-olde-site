@@ -65,6 +65,7 @@ class Ship {
         this.ani = 0;
         this.type = Math.random() < 0.8 ? 'merchant' : 'pirate';
         this.target = null;
+        this.speed = this.type == 'merchant' ? 1 : (Math.random() * 0.3) + 1;
     }
 
     update (allShips, tick) {
@@ -78,20 +79,20 @@ class Ship {
             }
 
             if (this.type == 'pirate') {
-                let angle = degToRad((tick / 2) % 360);
-                let radius = 100;
+                let angle = degToRad((tick) % 360);
+                let radius = 100 + (Math.random() * 20);
                 let destx = this.target.x + Math.cos(angle) * radius;
                 let desty = this.target.y + Math.sin(angle) * radius;
                 this.destination = [destx, desty];
             }
 
-            if (this.target.state == 'dead') this.target = null;
+            if (this.target?.state == 'dead') this.target = null;
 
             const dx = this.destination[0] - this.x;
             const dy = this.destination[1] - this.y;
             const heading = Math.atan2(dy, dx);
-            this.x += Math.cos(heading);
-            this.y += Math.sin(heading);
+            this.x += Math.cos(heading) * this.speed;
+            this.y += Math.sin(heading) * this.speed;
             this.flipped = (dx < 0) ? false : true;
             if (Math.abs(dx + dy) < 5) {
                 this.destination = [Math.random() * canvas.width, Math.random() * canvas.height];
