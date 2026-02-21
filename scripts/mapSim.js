@@ -13,6 +13,8 @@ const loadImage = (url) => {
     });
 };
 
+const degToRad = (deg) => deg * (Math.PI / 180);
+
 const drawFlipped = (img, sx, sy, sw, sh, x, y, width, height) => {
     ctx.save(); // Save the current state (rotation, scaling, etc.)
 
@@ -61,10 +63,30 @@ class Ship {
         this.flipped = false;
         this.state = 'moving';
         this.ani = 0;
+        this.type = Math.random() < 0.8 ? 'merchant' : 'pirate';
+        this.target = null;
     }
 
     update (allShips, tick) {
         if (this.state == 'moving' || this.state == 'fire') {
+            if (this.type == 'pirate' && this.target == null) {
+                let choice = allShips[Math.floor(Math.random() * allShips.length)];
+                while (choice === this) {
+                    choice = allShips[Math.floor(Math.random() * allShips.length)];
+                }
+                this.target = choice;
+            }
+
+            if (this.type == 'pirate') {
+                let angle = degToRad((tick / 2) % 360);
+                let radius = 100;
+                let destx = this.target.x + Math.cos(angle) * radius;
+                let desty = this.target.y + Math.sin(angle) * radius;
+                this.destination = [destx, desty];
+            }
+
+            if (this.target.state == 'dead') this.target = null;
+
             const dx = this.destination[0] - this.x;
             const dy = this.destination[1] - this.y;
             const heading = Math.atan2(dy, dx);
@@ -126,6 +148,7 @@ class Ship {
                 break;
             case 'dead':
                 this.ani++;
+                this.target = null;
                 animationFrame = Math.floor(this.ani / 15);
                 if (animationFrame > 3) {
                     this.state = 'moving';
