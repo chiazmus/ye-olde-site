@@ -106,7 +106,7 @@ aside .card {
     font-size: 1.25rem;  
 }
 
-canvas {
+#mapCanvas {
     position: fixed;   /* Stays in place during scroll */
   top: 0;
   left: 0;
@@ -115,4 +115,10 @@ canvas {
   height: 1200px;
   image-rendering: pixelated; /* Chrome/Edge/Safari */
   image-rendering: crisp-edges; /* Firefox */
+}
+
+#cubeScreen {
+    width: clamp(100px, 80%, 600px);
+    height: auto;
+    align-self: center;
 }
