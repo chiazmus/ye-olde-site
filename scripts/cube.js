@@ -79,13 +79,21 @@ const myCube = [
     {x : 0.5, y : -0.5, z : 3}, {x : -0.5, y : -0.5, z : 3}, {x : -0.5, y : 0.5, z : 3}, {x : 0.5, y : 0.5, z : 3}
 ];
 
+const miniCube = [
+    {x : 0.25, y : -0.25, z : 2.25}, {x : -0.25, y : -0.25, z : 2.25}, {x : -0.25, y : 0.25, z : 2.25}, {x : 0.25, y : 0.25, z : 2.25},
+    {x : 0.25, y : -0.25, z : 2.75}, {x : -0.25, y : -0.25, z : 2.75}, {x : -0.25, y : 0.25, z : 2.75}, {x : 0.25, y : 0.25, z : 2.75}
+];
+
 const FPS = 60;
 let angle = 0;
+let littleAngle = 0;
 
 function frame() {
     const dt = 1/FPS;
     angle += (Math.PI / 2) * dt;
+    littleAngle -= (Math.PI) * dt;
     clear();
+    drawCube(miniCube, littleAngle);
     drawCube(myCube, angle);
     setTimeout(frame, 1000/FPS);
 }
