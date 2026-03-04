@@ -37,13 +37,13 @@ const rookTable = [0,  0,  0,  0,  0,  0,  0,  0,
  -5,  0,  0,  0,  0,  0,  0, -5,
   0,  0,  0,  5,  5,  0,  0,  0];
 const queenTable = [-20,-10,-10, -5, -5,-10,-10,-20,
--10,  0,  0,  0,  0,  0,  0,-10,
--10,  0,  5,  5,  5,  5,  0,-10,
- -5,  0,  5,  5,  5,  5,  0, -5,
-  5,  5,  10,  10,  10,  10,  5, -2,
--5,  10,  10,  10,  10,  10,  5,-5,
--5,  5,  10,  5,  5,  5,  5,-5,
--10,-5,-5, -2, -2,-5,-5,-10]
+                    -10,  0,  0,  0,  0,  0,  0,-10,
+                    -10,  0,  10,  10,  10,  10,  0,-10,
+                     -5,  0,  10,  10,  10,  10,  0, -5,
+                      0,  0,  5,  5,  5,  5,  0, -5,
+                    -10,  5,  5,  5,  5,  5,  0,-10,
+                    -10,  0,  5,  0,  0,  0,  0,-10,
+                    -20,-10,-10, -5, -5,-10,-10,-20]
 const kingMiddleTable = [-30,-40,-40,-50,-50,-40,-40,-30,
 -30,-40,-40,-50,-50,-40,-40,-30,
 -30,-40,-40,-50,-50,-40,-40,-30,
@@ -170,6 +170,18 @@ function simpleEval(fen) {
     return boardValue + Math.random();
 }
 
+function gameOverDisplay() {
+    const messageElement = document.getElementById('chessMessage');
+    if (game.isCheckmate()) {
+        if (game.turn === 'w') messageElement.textContent = 'Checkmate!  I win.  Would you like to play again?';
+        else messageElement.textContent = 'Checkmate!  You win.  Would you like to play again?';
+    } else {
+        messageElement.textContent = "It's a draw!  Would you like to play again?";
+    }
+    drawBoard(game.fen());
+    setTimeout(() => {game.reset();}, 5000);
+}
+
 function simpleEngineMove() {
 
     let moves = game.moves();
@@ -182,10 +194,12 @@ function simpleEngineMove() {
     });
     
     futureBoards.sort((a, b) => a.boardState - b.boardState);
-
-    game.move(futureBoards[0].move);
+    if (futureBoards.length <= 3) game.move(futureBoards[Math.floor(Math.random() * 3)].move);
+    else game.move(futureBoards[0].move);
     endgameCheck(game.fen());
-    if (game.isGameOver()) game.reset();
+    if (game.isGameOver()) { 
+        gameOverDisplay();
+    };
 }
 
 function drawBoard(fen) {
@@ -241,8 +255,9 @@ function drawBoard(fen) {
                 const currentSquare = indexToSquare(i);
                 if (pieceSelected.textContent == '♙' && currentSquare.slice(-1) == '8') game.move(`${pieceSquare}${currentSquare}q`);
                 else game.move({from: pieceSquare, to: currentSquare});
-                if (game.isGameOver()) game.reset();
-                else simpleEngineMove();
+                if (game.isGameOver()) { 
+                    gameOverDisplay();
+                } else simpleEngineMove();
                 drawBoard(game.fen());
             }
         };  
