@@ -130,3 +130,42 @@ aside .card {
     height: auto;
     align-self: center;    
 }
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr); /* Creates 8 equal columns */
+    grid-template-rows: repeat(8, 1fr); /* Creates 8 equal rows */
+    width: 400px; /* Adjust size as needed */
+    height: 400px;
+    align-self: center;
+}
+
+.square {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+}
+
+.light { background-color: #303030; } /* Light square color */
+.dark { background-color: #0a0c0a; } /* Dark square color */
+
+.legalMove {
+    border: 1px solid;
+    border-color: #35d0f7;
+}
+
+.white-piece {
+    color: #00ff41;
+    font-size: xx-large;
+    text-align: center;
+    cursor: pointer;
+}
+
+.black-piece {
+    color: #ff0041;
+    font-size: xx-large;
+    text-align: center;
+    cursor: default;
+}
