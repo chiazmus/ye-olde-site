@@ -40,10 +40,10 @@ const queenTable = [-20,-10,-10, -5, -5,-10,-10,-20,
 -10,  0,  0,  0,  0,  0,  0,-10,
 -10,  0,  5,  5,  5,  5,  0,-10,
  -5,  0,  5,  5,  5,  5,  0, -5,
-  0,  0,  5,  5,  5,  5,  0, -5,
--10,  5,  5,  5,  5,  5,  0,-10,
--10,  0,  5,  0,  0,  0,  0,-10,
--20,-10,-10, -5, -5,-10,-10,-20]
+  5,  5,  10,  10,  10,  10,  5, -2,
+-5,  10,  10,  10,  10,  10,  5,-5,
+-5,  5,  10,  5,  5,  5,  5,-5,
+-10,-5,-5, -2, -2,-5,-5,-10]
 const kingMiddleTable = [-30,-40,-40,-50,-50,-40,-40,-30,
 -30,-40,-40,-50,-50,-40,-40,-30,
 -30,-40,-40,-50,-50,-40,-40,-30,
@@ -62,7 +62,7 @@ const kingEndTable = [-50,-40,-30,-20,-20,-30,-40,-50,
 -50,-30,-30,-30,-30,-30,-30,-50]
 
 const pieceValue = {'p': 100, 'n': 300, 'b': 350, 'r': 500, 'q': 900, 'k': 10000};
-const pieceSquares = {'p': pawnTable, 'n': knightTable, 'b': bishopTable, 'r': rookTable, 'q': queenTable, 'k': kingMiddleTable};
+let pieceSquares = {'p': pawnTable, 'n': knightTable, 'b': bishopTable, 'r': rookTable, 'q': queenTable, 'k': kingMiddleTable};
 
 const toBlackIndex = (whiteIndex) => {
     return whiteIndex ^ 56;
@@ -81,8 +81,26 @@ const squareToIndex = (square) => {
     return rank * 8 + file;
 };
 
+const endgameCheck = (fen) => {
+    const expandedFen = expandFEN(fen);
+    let boardValue = 0;
+    const splitFen = expandedFen.split('');
+    let phase = 0;
+    for (let i = 0; i < 64; i++) {
+        const square = splitFen[i];
+        if (square.toLowerCase() in pieceValue) {
+            phase += pieceValue[square.toLowerCase()];
+        }
+    }
+    if (phase <= 12600) {
+        endgame = true;
+        pieceSquares['k'] = kingEndTable;
+    }
+}
+
 let pieceSelected;
 let pieceSquare;
+let endgame = false;
 
 function expandFEN(fen) {
     const piecePart = fen.split(' ')[0].replace(/\//g, '');
@@ -166,6 +184,7 @@ function simpleEngineMove() {
     futureBoards.sort((a, b) => a.boardState - b.boardState);
 
     game.move(futureBoards[0].move);
+    endgameCheck(game.fen());
     if (game.isGameOver()) game.reset();
 }
 
