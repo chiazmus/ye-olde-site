@@ -133,9 +133,9 @@ aside .card {
 
 #board {
     display: grid;
-    grid-template-columns: repeat(8, 1fr); /* Creates 8 equal columns */
-    grid-template-rows: repeat(8, 1fr); /* Creates 8 equal rows */
-    width: 400px; /* Adjust size as needed */
+    grid-template-columns: repeat(8, 1fr); 
+    grid-template-rows: repeat(8, 1fr); 
+    width: 400px; 
     height: 400px;
     align-self: center;
 }
@@ -148,8 +148,8 @@ aside .card {
     border: none;
 }
 
-.light { background-color: #303030; } /* Light square color */
-.dark { background-color: #0a0c0a; } /* Dark square color */
+.light { background-color: #303030; } 
+.dark { background-color: #0a0c0a; } 
 
 .legalMove {
     border: 1px solid;

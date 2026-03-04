@@ -85,11 +85,7 @@ let pieceSelected;
 let pieceSquare;
 
 function expandFEN(fen) {
-    // 1. Only take the piece placement part (before the first space)
-    // 2. Remove the '/' rank separators
     const piecePart = fen.split(' ')[0].replace(/\//g, '');
-    
-    // 3. Replace numbers with the corresponding number of dots
     return piecePart.replace(/\d/g, (number) => {
         return '.'.repeat(parseInt(number));
     });
@@ -109,7 +105,7 @@ function getSEE(square) {
                .sort((a, b) => a - b)
     };
 
-    // idx 0 = front of queue (cheapest), use shift() not pop()
+    // idx 0 = front of queue (cheapest)
     let gains = [];
     let currentVictimValue = pieceValue[piece.type];
     let turn = piece.color === 'w' ? 'b' : 'w';
@@ -140,6 +136,7 @@ function simpleEval(fen) {
             const isBlack = square.toLowerCase() === square
             const value = pieceValue[square.toLowerCase()];
             const peiceSquareValue = pieceSquares[square.toLowerCase()][isBlack ? toBlackIndex(i) : i];
+            // Simplified piece capturing sim
             // const whiteAttackers = game.attackers(indexToSquare(i), 'w').length; 
             // const blackAttackers = game.attackers(indexToSquare(i), 'b').length; 
             // const safety = isBlack ? (blackAttackers - whiteAttackers) : (whiteAttackers - blackAttackers);
@@ -160,10 +157,9 @@ function simpleEngineMove() {
     let moves = game.moves();
 
     const futureBoards = moves.map(move => {
-        game.move(move);              // 1. Make the move
-        const boardState = simpleEval(game.fen()); // 2. Capture the state (FEN is most lightweight)
-        // OR use chess.board() if you need the full array
-        game.undo();                  // 3. Revert to original position
+        game.move(move);           
+        const boardState = simpleEval(game.fen());
+        game.undo();                 
         return { move, boardState };
     });
     
