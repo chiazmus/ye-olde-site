@@ -3,6 +3,7 @@ import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm';
 const game = new Chess();
 
 const chessBoard = document.getElementById('board');
+const controlBoard = document.getElementById('chessControls');
 
 const pawnTable = [ 0,  0,  0,  0,  0,  0,  0,  0,
 50, 50, 50, 50, 50, 50, 50, 50,
@@ -61,6 +62,13 @@ const kingEndTable = [-50,-40,-30,-20,-20,-30,-40,-50,
 -30,-30,  0,  0,  0,  0,-30,-30,
 -50,-30,-30,-30,-30,-30,-30,-50]
 
+const gameControls = {
+    usingStaticExchangeEval : true,
+    usingPST : true,
+    usingMaterial : true,
+    usingSimpleSEE : false
+};
+
 const pieceValue = {'p': 100, 'n': 300, 'b': 350, 'r': 500, 'q': 900, 'k': 10000};
 let pieceSquares = {'p': pawnTable, 'n': knightTable, 'b': bishopTable, 'r': rookTable, 'q': queenTable, 'k': kingMiddleTable};
 
@@ -83,7 +91,6 @@ const squareToIndex = (square) => {
 
 const endgameCheck = (fen) => {
     const expandedFen = expandFEN(fen);
-    let boardValue = 0;
     const splitFen = expandedFen.split('');
     let phase = 0;
     for (let i = 0; i < 64; i++) {
@@ -97,6 +104,26 @@ const endgameCheck = (fen) => {
         pieceSquares['k'] = kingEndTable;
     }
 }
+
+const buildControls = (controls) => {
+    // [name, controlVariable]
+    for(const key in controls) {
+        const newButton = document.createElement('input');
+        newButton.type = 'checkbox';
+        newButton.name = key;
+        newButton.id = key;
+        newButton.checked = controls[key];
+        const label = document.createElement('label');
+        label.setAttribute('for', newButton.id);
+        label.textContent = key;
+        newButton.addEventListener('click', () => {
+            if (newButton.checked) controls[key] = true;
+            else controls[key] = false;
+        });
+        controlBoard.appendChild(newButton);
+        controlBoard.appendChild(label);
+    }
+};
 
 let pieceSelected;
 let pieceSquare;
@@ -154,17 +181,30 @@ function simpleEval(fen) {
             const isBlack = square.toLowerCase() === square
             const value = pieceValue[square.toLowerCase()];
             const peiceSquareValue = pieceSquares[square.toLowerCase()][isBlack ? toBlackIndex(i) : i];
-            // Simplified piece capturing sim
-            // const whiteAttackers = game.attackers(indexToSquare(i), 'w').length; 
-            // const blackAttackers = game.attackers(indexToSquare(i), 'b').length; 
-            // const safety = isBlack ? (blackAttackers - whiteAttackers) : (whiteAttackers - blackAttackers);
-            // const attackedVal = safety < 0 ? safety * (value) : 0;
-            const safetyScore = getSEE(indexToSquare(i));
-            if (isBlack && safetyScore > 0) boardValue += safetyScore;
-            if (!isBlack && safetyScore < 0) boardValue += safetyScore;
+            
+            if (gameControls.usingStaticExchangeEval) {
+                const safetyScore = getSEE(indexToSquare(i));
+                if (isBlack && safetyScore > 0) boardValue += safetyScore;
+                if (!isBlack && safetyScore < 0) boardValue += safetyScore;
+            } else if (gameControls.usingSimpleSEE) {
+                // Simplified piece capturing static exchange eval
+                const whiteAttackers = game.attackers(indexToSquare(i), 'w').length; 
+                const blackAttackers = game.attackers(indexToSquare(i), 'b').length; 
+                const safety = isBlack ? (blackAttackers - whiteAttackers) : (whiteAttackers - blackAttackers);
+                const attackedVal = safety < 0 ? safety * (value * 0.3) : 0;
+                boardValue += attackedVal * (isBlack ? -1 : 1);
+            }
+
+            if (gameControls.usingPST) {
+                boardValue += peiceSquareValue * (isBlack ? -1 : 1);
+            }
+
+            if (gameControls.usingMaterial) {
+                boardValue += value * (isBlack ? -1 : 1);
+            }
+            
             if (game.isCheckmate()) boardValue += 20000 * (game.turn() === 'b' ? 1 : -1);
             if (game.isStalemate() || game.isDraw() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) boardValue -= 20000 * (game.turn === 'b' ? 1 : -1);
-            boardValue += ((value + peiceSquareValue) * (isBlack ? -1 : 1));
         }
     }
     return boardValue + Math.random();
@@ -194,7 +234,7 @@ function simpleEngineMove() {
     });
     
     futureBoards.sort((a, b) => a.boardState - b.boardState);
-    if (futureBoards.length <= 3) game.move(futureBoards[Math.floor(Math.random() * 3)].move);
+    if (futureBoards.length >= 3) game.move(futureBoards[Math.floor(Math.random() * 3)].move);
     else game.move(futureBoards[0].move);
     endgameCheck(game.fen());
     if (game.isGameOver()) { 
@@ -265,4 +305,5 @@ function drawBoard(fen) {
     }
 }
 
+buildControls(gameControls);
 drawBoard(game.fen());

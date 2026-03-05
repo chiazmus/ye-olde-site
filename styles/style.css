@@ -137,7 +137,6 @@ aside .card {
     grid-template-rows: repeat(8, 1fr); 
     width: 400px; 
     height: 400px;
-    align-self: center;
 }
 
 .square {
@@ -168,4 +167,17 @@ aside .card {
     font-size: xx-large;
     text-align: center;
     cursor: default;
+}
+
+.boardContainer {
+    display: flex;
+    flex-direction: row;
+    align-self: center;
+}
+
+#chessControls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem;
 }
