@@ -67,9 +67,9 @@ class Ship {
         this.flipped = false;
         this.state = 'moving';
         this.ani = 0;
-        this.type = Math.random() < 0.8 ? 'merchant' : 'pirate';
+        this.type = Math.random() < 0.8 ? (Math.random() < 0.99 ? 'merchant' : 'serpent') : 'pirate';
         this.target = null;
-        this.speed = this.type == 'merchant' ? 1 : (Math.random() * 0.3) + 1;
+        this.speed = (this.type == 'merchant' || this.type == 'serpent') ? 1 : (Math.random() * 0.3) + 1;
     }
 
     update (allShips, tick) {
@@ -103,7 +103,7 @@ class Ship {
             }
             allShips.forEach(ship => {
                 if (ship !== this) {
-                    if (Math.abs(this.x - ship.x) < 10 && Math.abs(this.y - ship.y) < 500 && tick % 15 == 0) {
+                    if (Math.abs(this.x - ship.x) < 10 && Math.abs(this.y - ship.y) < 500 && tick % 15 == 0 && this.type !== 'serpent') {
                         this.state = 'fire';
                         let mod = (this.y > ship.y) ? -20 : 20;
                         cannonBalls.push(new CannonBall(this.x+8, this.y+mod, (mod < 0) ? true : false));
@@ -117,15 +117,25 @@ class Ship {
         let animationFrame;
         switch (this.state) {
             case 'moving':
-                if (tick % 60 > 30){
-                    if (this.flipped) drawFlipped(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
-                    else ctx.drawImage(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
-                } else { 
-                    if (this.flipped) drawFlipped(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
-                    else ctx.drawImage(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
-                }
+                if (this.type !== 'serpent') {
+                    if (tick % 60 > 30){
+                        if (this.flipped) drawFlipped(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                        else ctx.drawImage(window.assets.ship1, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    } else { 
+                        if (this.flipped) drawFlipped(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                        else ctx.drawImage(window.assets.ship1, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    }
 
-                if (Math.random() < 0.0002) this.state = 'kraken';
+                    if (Math.random() < 0.0002) this.state = 'kraken';
+                } else {
+                    if (tick % 60 > 30){
+                        if (!this.flipped) drawFlipped(window.assets.serpent, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                        else ctx.drawImage(window.assets.serpent, 0, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    } else { 
+                        if (!this.flipped) drawFlipped(window.assets.serpent, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                        else ctx.drawImage(window.assets.serpent, 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
+                    }                    
+                }
 
                 break;
             case 'kraken':
@@ -160,7 +170,7 @@ class Ship {
                     this.ani = 0;
                     this.x = Math.random() * canvas.width;
                     this.y = Math.random() * canvas.height;
-                } else {
+                } else if (this.type !== 'serpent') {
                     ctx.drawImage(window.assets.sunk, animationFrame * 16, 0, 16, 16, Math.floor(this.x), Math.floor(this.y), 32, 32);
                 }
                 break;
@@ -229,15 +239,16 @@ function animationLoop() {
 
 async function initCanvas() {
     ctx.imageSmoothingEnabled = false;
-    const [ship1, kraken, firing, sunk] = await Promise.all([
+    const [ship1, kraken, firing, sunk, serpent] = await Promise.all([
         loadImage('./assets/ship-1.png'),
         loadImage('./assets/kraken-ship.png'),
         loadImage('./assets/ship-firing.png'),
         loadImage('./assets/sunk-ship.png'),
+        loadImage('./assets/sea-serpent.png'),
     ]);
 
     // Store them globally or pass them to your loop
-    window.assets = { ship1, kraken, firing, sunk };
+    window.assets = { ship1, kraken, firing, sunk, serpent };
     for (let i = 0; i < 10; i++) {
         ships.push(new Ship(Math.random() * canvas.width, Math.random() * canvas.height))
     }

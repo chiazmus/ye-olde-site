@@ -4,6 +4,7 @@ screen.height = 500;
 const ctx = screen.getContext("2d");
 const bgColor = '#111';
 const fgColor = '#5f5';
+let myAssets;
 
 const keys = {};
 let mouseDeltaX = 0;
@@ -15,10 +16,18 @@ let levelMap = [[1,1,1,1,1],
                   [1,1,1,1,1]];
 
 const player = {
-    x : 1,
-    y : 1,
+    x : 1.5,
+    y : 1.5,
     angle : ((Math.PI / 8) * 3),
     speed : 0.1
+};
+
+const loadImage = (url) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = url;
+    });
 };
 
 const clear = () => {
@@ -131,6 +140,18 @@ const mazeCarve = (map, size) => {
     return map;
 };
 
+const removeRandomCells = (map, size) => {
+    const iterations = 20;
+
+    for (let i = 0; i < iterations; i++) {
+        let x = Math.floor(Math.random() * (size-2))+1;
+        let y = Math.floor(Math.random() * (size-2))+1;
+        map[y][x] = 0;
+    }
+
+    return map;
+};
+
 const carveOutMap = (map, size) => {
     const iterations = 80;
     let x = Math.floor(Math.random() * size);
@@ -167,21 +188,28 @@ const distance = (p1, p2) => Math.sqrt(Math.pow(p1.x-p2.x, 2)+Math.pow(p1.y-p2.y
 
 const castRay = ({x, y}, angle, map) => {
     const mapSize = map[0].length;
-    const bitsize = 16;
+    const bitsize = 32;
     const dx = Math.cos(angle) / bitsize;
     const dy = Math.sin(angle) / bitsize;
     const steps = 20;
     let tempX = x;
     let tempY = y;
+    let side = 0;
 
     for (let i = 0; i < steps*bitsize; i++) {
         tempX += dx;
-        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] === 1) break;
+        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] === 1) { 
+            side = 1;
+            break;
+        }
         tempY += dy;
-        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] === 1) break;
+        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] === 1){ 
+            side = 0;
+            break;
+        }
     }
 
-    return distance({x: x, y: y}, {x: tempX, y: tempY})
+    return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side};
 };
 
 const toRad = (angle) => angle * Math.PI / 180;
@@ -193,18 +221,36 @@ const drawRayCast = ({x, y}, angle, map) => {
 
     for (let i = 0; i < rays; i++) {
         const currentRay = toRad(i * rayAngle) + (angle - toRad(maxAngle/2));
-        const dist = castRay({x: x, y: y}, currentRay, map) || 0.0001;
+        const result = castRay({x: x, y: y}, currentRay, map)
+        const dist = result.dist || 0.0001;
+        const side = result.side;
+
+        let wallX = (side === 1) ? result.hitY : result.hitX;
+        wallX -= Math.floor(wallX);
+        const texX = Math.floor(wallX * 32); //This is the texture x...
         const color = [Math.floor((85 * (1 - (dist / 15)))/8)*8, Math.floor((255 * (1 - (dist / 15)))/8)*8, Math.floor((85 * (1-(dist / 15)))/8)*8];
         const lineHeight = (1/dist) * (screen.height);
         const screenX = i * (screen.width / rays);
         const drawStart = (screen.height / 2) - (lineHeight / 2);
         const drawEnd = (screen.height / 2) + (lineHeight / 2);
+        const stripWidth = screen.width / rays;
+        const texture = (Math.floor(result.hitX) + Math.floor(result.hitY)) % 7 != 0 ? myAssets.wall : myAssets.tileWall; 
 
-        drawLine(
-                { x: screenX, y: drawStart }, 
-                { x: screenX, y: drawEnd },
-                `rgb(${color[0]}, ${color[1]}, ${color[2]})`
-            );
+        ctx.drawImage(texture, texX, 0, 1, 32, screenX, drawStart, stripWidth, lineHeight);
+
+        const maxDist = 15; // The distance where things become invisible
+        let opacity = dist / maxDist; 
+        if (side === 1) opacity += 0.2;
+        if (opacity > 1) opacity = 1; // Clamp to 1
+
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.fillRect(screenX, drawStart, stripWidth, lineHeight);
+
+        // drawLine(
+        //         { x: screenX, y: drawStart }, 
+        //         { x: screenX, y: drawEnd },
+        //         `rgb(${color[0]}, ${color[1]}, ${color[2]})`
+        //     );
     }
 };
 
@@ -236,9 +282,20 @@ function displayScreen() {
     drawCRT();
 }
 
-function init() {
+async function init() {
+
+    ctx.imageSmoothingEnabled = false;
+    const [wall, tileWall] = await Promise.all([
+        loadImage('./assets/brickWall.png'),
+        loadImage('./assets/tileWall.png')
+    ]);
+
+    // Store them globally or pass them to your loop
+    myAssets = { wall, tileWall };
+
     levelMap = generateEmptyMap(20);
     levelMap = prims(levelMap, 20);
+    levelMap = removeRandomCells(levelMap, 20);
 
     const startLocation = pickPlayerStart(levelMap, 20);
 
@@ -259,11 +316,13 @@ function init() {
             
         }
     });
+    update();
 }
 
 // Game Loop
 function update() {
     let changed = false;
+    let mapSize = 20;
     // if (keys['ArrowLeft']) {
     //     player.angle -= (Math.PI / 90);
     //     changed = true;
@@ -284,12 +343,12 @@ function update() {
     if (keys['ArrowUp'] || keys['KeyW'] && (document.pointerLockElement === screen)) {
         const dx = Math.cos(player.angle);
         const dy = Math.sin(player.angle);
-        player.x += dx * player.speed;
-        player.y += dy * player.speed;
+        let tempX = player.x + dx * player.speed;
+        let tempY = player.y + dy * player.speed;
 
-        if (levelMap[Math.floor(player.y)][Math.floor(player.x)] === 1) {
-            player.x -= dx * player.speed;
-            player.y -= dy * player.speed;
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+            player.x = tempX;
+            player.y = tempY
         }
 
         changed = true;
@@ -298,12 +357,12 @@ function update() {
     if (keys['ArrowDown'] || keys['KeyS'] && (document.pointerLockElement === screen)) {
         const dx = Math.cos(player.angle);
         const dy = Math.sin(player.angle);
-        player.x -= dx * player.speed;
-        player.y -= dy * player.speed;
+        let tempX = player.x - dx * player.speed;
+        let tempY = player.y - dy * player.speed;
 
-        if (levelMap[Math.floor(player.y)][Math.floor(player.x)] === 1) {
-            player.x += dx * player.speed;
-            player.y += dy * player.speed;
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+            player.x = tempX;
+            player.y = tempY
         }
 
         changed = true;
@@ -312,12 +371,12 @@ function update() {
     if (keys['KeyD'] && (document.pointerLockElement === screen)) {
         const dx = Math.cos(player.angle + toRad(90));
         const dy = Math.sin(player.angle + toRad(90));
-        player.x += dx * player.speed;
-        player.y += dy * player.speed;
+        let tempX = player.x + dx * player.speed;
+        let tempY = player.y + dy * player.speed;
 
-        if (levelMap[Math.floor(player.y)][Math.floor(player.x)] === 1) {
-            player.x -= dx * player.speed;
-            player.y -= dy * player.speed;
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+            player.x = tempX;
+            player.y = tempY
         }
 
         changed = true;
@@ -326,12 +385,12 @@ function update() {
     if (keys['KeyA'] && (document.pointerLockElement === screen)) {
         const dx = Math.cos(player.angle + toRad(90));
         const dy = Math.sin(player.angle + toRad(90));
-        player.x -= dx * player.speed;
-        player.y -= dy * player.speed;
+        let tempX = player.x - dx * player.speed;
+        let tempY = player.y - dy * player.speed;
 
-        if (levelMap[Math.floor(player.y)][Math.floor(player.x)] === 1) {
-            player.x += dx * player.speed;
-            player.y += dy * player.speed;
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+            player.x = tempX;
+            player.y = tempY
         }
 
         changed = true;
@@ -342,5 +401,6 @@ function update() {
   requestAnimationFrame(update);
 }
 
-init();
-update();
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+});

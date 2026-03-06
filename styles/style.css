@@ -53,7 +53,9 @@ nav ul {
 
 .main-container {
     display: flex;
+    flex-direction: row;
     flex-grow: 1;
+    margin: 0 clamp(20px, 15%, 500px);
 }
 
 main {
