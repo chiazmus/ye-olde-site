@@ -5,6 +5,9 @@ const ctx = screen.getContext("2d");
 const bgColor = '#111';
 const fgColor = '#5f5';
 let myAssets;
+let zBuffer = {};
+
+let sprites = [];
 
 const keys = {};
 let mouseDeltaX = 0;
@@ -178,7 +181,7 @@ const carveOutMap = (map, size) => {
 const pickPlayerStart = (map, size) => {
     for (let x = 0; x < size; x++) {
         for (let y = 0; y < size; y++) {
-            if (map[y][x] === 0) return {x, y};
+            if (map[y][x] === 0) return {x: x + 0.25, y: y + 0.25};
         }
     }
     return null;
@@ -235,7 +238,7 @@ const drawRayCast = ({x, y}, angle, map) => {
         const drawEnd = (screen.height / 2) + (lineHeight / 2);
         const stripWidth = screen.width / rays;
         const texture = (Math.floor(result.hitX) + Math.floor(result.hitY)) % 7 != 0 ? myAssets.wall : myAssets.tileWall; 
-
+        zBuffer[Math.floor(screenX)] = dist;
         ctx.drawImage(texture, texX, 0, 1, 32, screenX, drawStart, stripWidth, lineHeight);
 
         const maxDist = 15; // The distance where things become invisible
@@ -251,6 +254,84 @@ const drawRayCast = ({x, y}, angle, map) => {
         //         { x: screenX, y: drawEnd },
         //         `rgb(${color[0]}, ${color[1]}, ${color[2]})`
         //     );
+    }
+};
+
+const drawSprite = (sprite) => {
+    const maxAngle = 45
+    function getSpriteScreenX(sprite) {
+        // 1. Get absolute angle from player to sprite
+        const dx = sprite.x - player.x;
+        const dy = sprite.y - player.y;
+        const spriteAngle = Math.atan2(dy, dx);
+
+        // 2. Get relative angle and NORMALIZE it to [-PI, PI]
+        // This prevents the sprite from "glitching" when crossing the 0/360 boundary
+        let beta = spriteAngle - player.angle;
+        beta = Math.atan2(Math.sin(beta), Math.cos(beta));
+
+        // 3. Convert to degrees to match your raycasting logic
+        const betaDeg = beta * (180 / Math.PI);
+
+        // 4. Map degrees to screen coordinates
+        // Middle of screen is 0 degrees. Left is -22.5, Right is 22.5.
+        const screenX = (betaDeg + maxAngle / 2) * (screen.width / maxAngle);
+
+        return {
+            x: screenX,
+            dist: Math.sqrt(dx * dx + dy * dy),
+            isVisible: Math.abs(betaDeg) < maxAngle // basic FOV clipping
+        };
+    }
+    const spriteTex = sprite.tex;
+    const distanceToSprite = sprite.dist;
+    const screenX = getSpriteScreenX(sprite).x
+
+    // Calculate size (inverse to distance, just like walls)
+    const spriteSize = (1 / distanceToSprite) * screen.height;
+    const drawStart = (screen.height / 2) - (spriteSize / 2);
+
+    for (let x = 0; x < spriteSize; x++) {
+        let columnX = Math.floor(screenX - (spriteSize/2) + x);
+        if (distanceToSprite < zBuffer[columnX] && distanceToSprite < 15 && !outOfBounds(columnX, screen.width)) {
+            ctx.drawImage(spriteTex, Math.floor(x/spriteSize * 32), 0, 1, 32, columnX, drawStart, 2, spriteSize);
+            // if (sprite.dimmable) {
+            //     const maxDist = 15; // The distance where things become invisible
+            //     let opacity = distanceToSprite / maxDist; 
+            //     if (opacity > 1) opacity = 1; // Clamp to 1
+            //     ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+            //     ctx.fillRect(columnX, drawStart, 2, spriteSize);
+            // }
+        }
+    }
+};
+
+const drawSprites = () => {
+    sprites.forEach((sprite) => {
+        const distanceToSprite = distance({x: sprite.x, y: sprite.y}, {x: player.x, y: player.y});
+        sprite.dist = distanceToSprite;
+    });
+
+    sprites = sprites.sort((a, b) => {a.dist - b.dist});
+
+    sprites.forEach((sprite) => {
+        drawSprite(sprite);
+    });
+};
+
+const addLamps = (mapSize) => {
+    for (let x = 0; x < mapSize; x++) {
+        for (let y = 0; y < mapSize; y++) {
+            if ((x % 2) + (y % 2) === 2 && Math.random() < 0.2) {
+                sprites.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    tex: myAssets.lamp,
+                    dist: 0,
+                    dimmable: false
+                }); 
+            }
+        }
     }
 };
 
@@ -279,30 +360,35 @@ const drawCRT = () => {
 function displayScreen() {
     clear();
     drawRayCast({x: player.x, y: player.y}, player.angle, levelMap);
+    drawSprites();
     drawCRT();
 }
 
 async function init() {
 
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall] = await Promise.all([
+    const [wall, tileWall, barrel, lamp] = await Promise.all([
         loadImage('./assets/brickWall.png'),
-        loadImage('./assets/tileWall.png')
+        loadImage('./assets/tileWall.png'),
+        loadImage('./assets/barrel.png'),
+        loadImage('./assets/lamp.png'),
     ]);
 
     // Store them globally or pass them to your loop
-    myAssets = { wall, tileWall };
+    myAssets = { wall, tileWall, barrel, lamp };
 
     levelMap = generateEmptyMap(20);
     levelMap = prims(levelMap, 20);
     levelMap = removeRandomCells(levelMap, 20);
 
+    addLamps(20);
+
     const startLocation = pickPlayerStart(levelMap, 20);
 
-    player.x = startLocation.x;
-    player.y = startLocation.y;
+    player.x = 3;
+    player.y = 3;
 
-    player.angle = toRad(-45);
+    player.angle = toRad(45);
     displayScreen();
 
     window.addEventListener('keydown', e => keys[e.code] = true);
