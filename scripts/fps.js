@@ -308,11 +308,10 @@ const drawSprite = (sprite) => {
 
 const drawSprites = () => {
     sprites.forEach((sprite) => {
-        const distanceToSprite = distance({x: sprite.x, y: sprite.y}, {x: player.x, y: player.y});
-        sprite.dist = distanceToSprite;
+        sprite.dist = distance({x: sprite.x, y: sprite.y}, {x: player.x, y: player.y});
     });
 
-    sprites = sprites.sort((a, b) => {a.dist - b.dist});
+    sprites.sort((a, b) => b.dist - a.dist);
 
     sprites.forEach((sprite) => {
         drawSprite(sprite);
