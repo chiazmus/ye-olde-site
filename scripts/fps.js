@@ -385,8 +385,8 @@ async function init() {
 
     const startLocation = pickPlayerStart(levelMap, 20);
 
-    player.x = 3;
-    player.y = 3;
+    player.x = startLocation.x;
+    player.y = startLocation.y;
 
     player.angle = toRad(45);
     displayScreen();
