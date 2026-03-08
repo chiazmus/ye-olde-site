@@ -7,6 +7,9 @@ const fgColor = '#5f5';
 let myAssets;
 let zBuffer = {};
 
+let attackState = 0;
+let animationPlaying = false;
+
 let sprites = [];
 
 const keys = {};
@@ -326,8 +329,26 @@ const addLamps = (mapSize) => {
                     x: x + 0.5,
                     y: y + 0.5,
                     tex: myAssets.lamp,
-                    dist: 0,
-                    dimmable: false
+                    dist: 110,
+                    dimmable: false,
+                    breakable: false
+                }); 
+            }
+        }
+    }
+};
+
+const addPots = (mapSize) => {
+    for (let x = 0; x < mapSize; x++) {
+        for (let y = 0; y < mapSize; y++) {
+            if ((x % 2) + (y % 2) === 2 && Math.random() < 0.2) {
+                sprites.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    tex: myAssets.pot,
+                    dist: 110,
+                    dimmable: false,
+                    breakable: true
                 }); 
             }
         }
@@ -360,27 +381,37 @@ function displayScreen() {
     clear();
     drawRayCast({x: player.x, y: player.y}, player.angle, levelMap);
     drawSprites();
+    if (attackState > 0) {
+        animationPlaying = true;
+        attackState--;
+        const spriteNum = 5-Math.floor(attackState/3);
+        ctx.drawImage(myAssets.arm, spriteNum * 32, 0, 32, 32, screen.width - (256+64), screen.height - 256, 256, 256);
+        if (attackState <= 0) animationPlaying = false;
+    }
     drawCRT();
 }
 
 async function init() {
 
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall, barrel, lamp] = await Promise.all([
+    const [wall, tileWall, barrel, lamp, pot, arm] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
         loadImage('./assets/barrel.png'),
         loadImage('./assets/lamp.png'),
+        loadImage('./assets/pot.png'),
+        loadImage('./assets/arm.png'),
     ]);
 
     // Store them globally or pass them to your loop
-    myAssets = { wall, tileWall, barrel, lamp };
+    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3') };
 
     levelMap = generateEmptyMap(20);
     levelMap = prims(levelMap, 20);
     levelMap = removeRandomCells(levelMap, 20);
 
     addLamps(20);
+    addPots(15);
 
     const startLocation = pickPlayerStart(levelMap, 20);
 
@@ -423,6 +454,18 @@ function update() {
         player.angle += mouseDeltaX * mouseSensitivity;
         mouseDeltaX = 0; // Reset after applying
         changed = true;
+    }
+
+    if ((keys['KeySpace'] || keys['KeyE']) && (document.pointerLockElement === screen)) {
+        attackState = (3*6);
+        animationPlaying = true;
+        for (let i = 0; i < sprites.length; i++) {
+            if (sprites[i].dist <= 1 && sprites[i].breakable) {
+                sprites.splice(i, 1);
+                myAssets.breakSound.play();
+                break;
+            }
+        }
     }
 
     if (keys['ArrowUp'] || keys['KeyW'] && (document.pointerLockElement === screen)) {
@@ -481,7 +524,7 @@ function update() {
         changed = true;
     }
 
-    if (changed) displayScreen();
+    if (changed || animationPlaying) displayScreen();
   
   requestAnimationFrame(update);
 }
