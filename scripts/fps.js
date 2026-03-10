@@ -247,8 +247,6 @@ const castRay = ({x, y}, angle, map) => {
     let tempX = x;
     let tempY = y;
     let side = 0;
-    // let tile = {x: Math.floor(tempX), y: Math.floor(tempY)}
-    // if (!visibleTiles.includes(tile)) visibleTiles.push(tile);
 
     for (let i = 0; i < steps*bitsize; i++) {
         tempX += dx;
@@ -256,15 +254,11 @@ const castRay = ({x, y}, angle, map) => {
             side = 1;
             break;
         }
-        // tile = {x: Math.floor(tempX), y: Math.floor(tempY)}
-        // if (!visibleTiles.includes(tile)) visibleTiles.push(tile);
         tempY += dy;
         if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] in walls){ 
             side = 0;
             break;
         }
-        // tile = {x: Math.floor(tempX), y: Math.floor(tempY)}
-        // if (!visibleTiles.includes(tile)) visibleTiles.push(tile);
     }
 
     return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side, tex: walls[map[Math.floor(tempY)][Math.floor(tempX)]]};
@@ -320,36 +314,50 @@ const drawRayCast = ({x, y}, angle, map) => {
     }
 };
 
-const screenToWorld = (screenX, screenY, player) => {
-    const rayAngle = toRad(45 / (screen.width / 2));
-    screenX = Math.floor(screenX / 2);
-    const angleToLocation = rayAngle * screenX  + (player.angle - toRad(45/2));
-    let distanceToLocation = Math.abs(screenY - (screen.height / 2)) * 2;
-    distanceToLocation = 1 / (distanceToLocation / screen.height);
-    const worldX = player.x + (Math.cos(angleToLocation) * distanceToLocation);
-    const worldY = player.y + (Math.sin(angleToLocation) * distanceToLocation);
-    return {x: worldX, y: worldY};
-}    
-
 const drawTexturedFloor = () => {
     pixels.fill(0);
+
+    const halfHeight = screen.height / 2;
+    const rayAngle = toRad(45 / (screen.width / 2));
+    const halfFov = toRad(45 / 2);
+
     for (let y = 0; y < screen.height; y++) {
+
+        // Pre-compute the distance for this entire row (it's the same for every x)
+        let distanceToLocation = Math.abs(y - halfHeight) * 2;
+        if (distanceToLocation === 0) continue; // avoid division by zero on horizon
+        distanceToLocation = screen.height / distanceToLocation;
+
         for (let x = 0; x < screen.width; x++) {
-            if (y > rayCastRows[x - (x % 2)].drawEnd-1 || y < rayCastRows[x - (x % 2)].drawStart+1) {
-                    const screenIndex = (y * screen.width + x) * 4;
-                    const worldLocation = screenToWorld(x, y, player);
-                    const lightLevel = lightMap[Math.floor(worldLocation.y)][Math.floor(worldLocation.x)];
-                    const lightModifier = ((1/6) * (lightLevel+2));
-                    pixels[screenIndex]     = 50 * lightModifier;     // R
-                    pixels[screenIndex + 1] = 50 * lightModifier; // G
-                    pixels[screenIndex + 2] = 50 * lightModifier; // B
-                    pixels[screenIndex + 3] = 255;// A
+            const col = rayCastRows[x - (x % 2)];
+            if (y >= col.drawEnd - 1 || y <= col.drawStart + 1) {
+
+                // Pre-compute angle per-column, not per-pixel
+                const angleToLocation = rayAngle * Math.floor(x / 2) + (player.angle - halfFov);
+
+                const worldX = player.x + Math.cos(angleToLocation) * distanceToLocation;
+                const worldY = player.y + Math.sin(angleToLocation) * distanceToLocation;
+                const mapH = lightMap.length;
+                const mapW = lightMap[0].length;
+
+                const tileY = Math.floor(worldY);
+                const tileX = Math.floor(worldX);
+
+                if (tileY < 0 || tileY >= mapH || tileX < 0 || tileX >= mapW) continue;
+
+                const lightLevel = lightMap[tileY][tileX];
+                const intensity = 50 * ((lightLevel + 2) / 6);
+
+                const screenIndex = (y * screen.width + x) * 4;
+                pixels[screenIndex]     = intensity;
+                pixels[screenIndex + 1] = intensity;
+                pixels[screenIndex + 2] = intensity;
+                pixels[screenIndex + 3] = 255;
             }
         }
     }
 
     scratchCtx.putImageData(imageBuffer, 0, 0);
-
     ctx.drawImage(scratchCanvas, 0, 0);
 };
 
