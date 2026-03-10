@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --panel: #1a1e2a;
+    --border: #252a38;
+    --accent: #4fffb0;
+    --accent2: #ff6b6b;
+    --accent3: #ffd93d;
+    --text: #c8d0e8;
+    --muted: #5a6480;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 20px;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(79,255,176,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 90%, rgba(255,107,107,0.03) 0%, transparent 50%);
+  }
+
+  header {
+    width: 100%;
+    max-width: 1100px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logo-label { font-size: 10px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; margin-bottom: 3px; }
+  h1 { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .dim-group {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  }
+  .dim-group label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+  .dim-group input {
+    background: none; border: none; outline: none;
+    color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+    width: 52px; text-align: center;
+  }
+  .dim-group input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .apply-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    padding: 6px 12px; border-radius: 7px; border: 1px solid var(--accent);
+    background: rgba(79,255,176,0.08); color: var(--accent); cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.06em; transition: all 0.15s;
+  }
+  .apply-btn:hover { background: rgba(79,255,176,0.18); }
+
+  .main { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* === PAINT PALETTE === */
+  .palette-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+
+  .palette-label { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+
+  .palette-swatches { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+  .swatch {
+    width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff; cursor: pointer;
+    transition: all 0.12s; user-select: none;
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+  }
+  .swatch:hover { border-color: var(--text); transform: scale(1.08); }
+  .swatch.active {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(79,255,176,0.35), 0 0 12px rgba(79,255,176,0.2);
+    transform: scale(1.12);
+  }
+
+  .swatch-add {
+    background: none !important; border: 2px dashed var(--border) !important;
+    color: var(--muted) !important; font-size: 20px !important; font-weight: 300 !important;
+  }
+  .swatch-add:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+
+  .palette-sep { width: 1px; height: 30px; background: var(--border); flex-shrink: 0; }
+
+  .custom-val-wrap {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  }
+  .custom-val-wrap label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; white-space: nowrap; }
+  #custom-val {
+    background: none; border: none; outline: none;
+    color: var(--accent3); font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+    width: 65px;
+  }
+  #custom-val::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .mode-info {
+    margin-left: auto; font-size: 10px; color: var(--muted); letter-spacing: 0.06em;
+    display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .mode-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
+
+  /* === GRID === */
+  .grid-wrap {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; overflow: auto; position: relative;
+  }
+
+  .grid-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .grid-meta { font-size: 11px; color: var(--muted); }
+  .grid-meta strong { color: var(--accent); }
+
+  #grid-canvas { display: block; cursor: crosshair; }
+
+  .zoom-controls { display: flex; gap: 6px; align-items: center; }
+  .zbtn {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    width: 26px; height: 26px; border-radius: 5px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+  }
+  .zbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .zoom-val { font-size: 11px; color: var(--muted); min-width: 32px; text-align: center; }
+
+  /* Toolbar */
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .toolbar-sep { width: 1px; height: 20px; background: var(--border); }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; padding: 7px 13px; border-radius: 7px; border: 1px solid;
+    cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+  }
+  .btn-ghost { background: none; border-color: var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+  .btn-danger { background: none; border-color: #3a1a1a; color: var(--accent2); }
+  .btn-danger:hover { background: rgba(255,107,107,0.08); border-color: var(--accent2); }
+
+  .var-input-wrap { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; }
+  .var-input-wrap label { font-size: 11px; color: var(--muted); }
+  #var-name { background: none; border: none; outline: none; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; width: 90px; }
+
+  .fmt-select {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 10px;
+    border-radius: 8px; cursor: pointer; outline: none;
+  }
+
+  /* Output */
+  .output-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .output-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  .output-title {
+    font-size: 11px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .output-title::before { content:''; width:6px; height:6px; background:var(--accent); border-radius:50%; box-shadow:0 0 8px var(--accent); }
+
+  #copy-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; padding: 5px 13px; border-radius: 6px;
+    border: 1px solid var(--accent); background: rgba(79,255,176,0.08); color: var(--accent);
+    cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+  }
+  #copy-btn:hover { background: rgba(79,255,176,0.18); }
+  #copy-btn.copied { border-color: var(--accent3); color: var(--accent3); background: rgba(255,217,61,0.08); }
+
+  .output-body { padding: 16px 20px; overflow-x: auto; max-height: 240px; overflow-y: auto; }
+  #output-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; color: var(--text); white-space: pre; user-select: all; }
+
+  .token-bracket { color: var(--muted); }
+  .token-num { color: #7dd3fc; }
+  .token-comma { color: var(--muted); }
+  .token-name { color: var(--accent); }
+  .token-kw { color: #c084fc; }
+
+  #tooltip {
+    position: fixed; background: #1a1e2a; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 9px; font-size: 11px; color: var(--text);
+    pointer-events: none; display: none; z-index: 100; letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo-label">Dev Tool</div>
+    <h1>Grid <span>Editor</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="dim-group">
+      <label>ROWS</label>
+      <input type="number" id="input-rows" value="10" min="1" max="500">
+    </div>
+    <div class="dim-group">
+      <label>COLS</label>
+      <input type="number" id="input-cols" value="10" min="1" max="500">
+    </div>
+    <button class="apply-btn" onclick="applySize()">Apply</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Paint Palette -->
+  <div class="palette-panel">
+    <span class="palette-label">Paint</span>
+    <div class="palette-swatches" id="swatches"></div>
+    <div class="palette-sep"></div>
+    <div class="custom-val-wrap">
+      <label>CUSTOM →</label>
+      <input id="custom-val" type="number" value="0" step="any">
+    </div>
+    <button class="btn btn-ghost" onclick="addCustomToPalette()" style="padding:6px 10px;font-size:10px;">+ Add</button>
+    <div class="palette-sep"></div>
+    <div class="toolbar">
+      <button class="btn btn-ghost" onclick="fillRandom()">Random</button>
+      <button class="btn btn-ghost" onclick="fillAll()">Fill All</button>
+      <button class="btn btn-danger" onclick="clearAll()">Clear</button>
+    </div>
+    <div class="mode-info">
+      <span class="mode-dot"></span>
+      <span id="mode-label">Click or drag to paint</span>
+    </div>
+  </div>
+
+  <!-- Grid Canvas -->
+  <div class="grid-wrap">
+    <div class="grid-header">
+      <span class="grid-meta"><strong id="dim-label">10×10</strong> &nbsp;·&nbsp; <span id="cell-count">100</span> cells</span>
+      <div class="zoom-controls">
+        <button class="zbtn" onclick="setZoom(cellSize - 4)">−</button>
+        <span class="zoom-val" id="zoom-val">24px</span>
+        <button class="zbtn" onclick="setZoom(cellSize + 4)">+</button>
+      </div>
+    </div>
+    <canvas id="grid-canvas"></canvas>
+  </div>
+
+  <!-- Output Toolbar -->
+  <div class="toolbar">
+    <div class="var-input-wrap">
+      <label>const</label>
+      <input id="var-name" type="text" value="grid" spellcheck="false" oninput="renderOutput()">
+    </div>
+    <div class="toolbar-sep"></div>
+    <select class="fmt-select" id="fmt-select" onchange="renderOutput()">
+      <option value="pretty" selected>Pretty</option>
+      <option value="inline">Inline</option>
+      <option value="typed">Typed (TS)</option>
+    </select>
+  </div>
+
+  <!-- Output -->
+  <div class="output-panel">
+    <div class="output-header">
+      <span class="output-title">JavaScript Output</span>
+      <button id="copy-btn" onclick="copyOutput()">Copy</button>
+    </div>
+    <div class="output-body"><div id="output-code"></div></div>
+  </div>
+
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let rows = 10, cols = 10;
+  let data = [];
+  let cellSize = 24;
+  let painting = false;
+  let selectedValue = 0;
+  let palette = [0, 1, -1, 2, 5, 10];
+
+  // ── Colors ─────────────────────────────────────────────────────────────────
+  function cellBg(val) {
+    if (val === 0) return '#161922';
+    if (val === 1) return '#182a20';
+    if (val === -1) return '#2a1818';
+    const h = Math.abs(Math.round(val * 137.508)) % 360;
+    return `hsl(${h},30%,20%)`;
+  }
+  function cellFg(val) {
+    if (val === 0) return '#3a4260';
+    if (val === 1) return '#4fffb0';
+    if (val === -1) return '#ff6b6b';
+    const h = Math.abs(Math.round(val * 137.508)) % 360;
+    return `hsl(${h},75%,68%)`;
+  }
+
+  // ── Data ───────────────────────────────────────────────────────────────────
+  function initData(newRows, newCols) {
+    const nd = [];
+    for (let r = 0; r < newRows; r++) {
+      nd[r] = [];
+      for (let c = 0; c < newCols; c++)
+        nd[r][c] = (data[r] && data[r][c] !== undefined) ? data[r][c] : 0;
+    }
+    rows = newRows; cols = newCols; data = nd;
+  }
+
+  // ── Canvas ─────────────────────────────────────────────────────────────────
+  const canvas = document.getElementById('grid-canvas');
+  const ctx = canvas.getContext('2d');
+  const GAP = 2;
+
+  function setZoom(sz) {
+    cellSize = Math.max(4, Math.min(80, sz));
+    document.getElementById('zoom-val').textContent = cellSize + 'px';
+    resizeCanvas();
+    drawGrid();
+  }
+
+  function resizeCanvas() {
+    canvas.width = cols * (cellSize + GAP) - GAP;
+    canvas.height = rows * (cellSize + GAP) - GAP;
+  }
+
+  function rrect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function drawGrid() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const fs = Math.max(6, Math.min(cellSize * 0.44, 13));
+    const rad = Math.max(2, cellSize * 0.12);
+    ctx.font = `700 ${fs}px JetBrains Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = c * (cellSize + GAP);
+        const y = r * (cellSize + GAP);
+        const val = data[r][c];
+
+        ctx.fillStyle = cellBg(val);
+        rrect(x, y, cellSize, cellSize, rad);
+        ctx.fill();
+
+        if (cellSize >= 10) {
+          ctx.fillStyle = cellFg(val);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+          ctx.clip();
+          ctx.fillText(String(val), x + cellSize / 2, y + cellSize / 2);
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  function drawCell(r, c) {
+    const x = c * (cellSize + GAP);
+    const y = r * (cellSize + GAP);
+    const val = data[r][c];
+    const fs = Math.max(6, Math.min(cellSize * 0.44, 13));
+    const rad = Math.max(2, cellSize * 0.12);
+
+    ctx.font = `700 ${fs}px JetBrains Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = cellBg(val);
+    rrect(x, y, cellSize, cellSize, rad);
+    ctx.fill();
+
+    if (cellSize >= 10) {
+      ctx.fillStyle = cellFg(val);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+      ctx.clip();
+      ctx.fillText(String(val), x + cellSize / 2, y + cellSize / 2);
+      ctx.restore();
+    }
+  }
+
+  // ── Mouse/Touch ────────────────────────────────────────────────────────────
+  function getCell(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const px = (clientX - rect.left) * sx;
+    const py = (clientY - rect.top) * sy;
+    const c = Math.floor(px / (cellSize + GAP));
+    const r = Math.floor(py / (cellSize + GAP));
+    return (r >= 0 && r < rows && c >= 0 && c < cols) ? { r, c } : null;
+  }
+
+  function paint(clientX, clientY) {
+    const cell = getCell(clientX, clientY);
+    if (!cell) return;
+    if (data[cell.r][cell.c] === selectedValue) return; // no-op
+    data[cell.r][cell.c] = selectedValue;
+    drawCell(cell.r, cell.c);
+    renderOutput();
+  }
+
+  canvas.addEventListener('mousedown', e => { painting = true; paint(e.clientX, e.clientY); });
+  canvas.addEventListener('mousemove', e => {
+    const cell = getCell(e.clientX, e.clientY);
+    const tip = document.getElementById('tooltip');
+    if (cell) {
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top = (e.clientY - 10) + 'px';
+      tip.textContent = `[${cell.r},${cell.c}] = ${data[cell.r][cell.c]}`;
+      if (painting) paint(e.clientX, e.clientY);
+    } else {
+      tip.style.display = 'none';
+    }
+  });
+  canvas.addEventListener('mouseup', () => painting = false);
+  canvas.addEventListener('mouseleave', () => { painting = false; document.getElementById('tooltip').style.display = 'none'; });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); painting = true; paint(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (painting) paint(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchend', () => painting = false);
+
+  // ── Palette ────────────────────────────────────────────────────────────────
+  function buildPalette() {
+    const container = document.getElementById('swatches');
+    container.innerHTML = '';
+    palette.forEach((val, i) => {
+      const sw = document.createElement('div');
+      sw.className = 'swatch' + (val === selectedValue ? ' active' : '');
+      sw.style.background = cellBg(val);
+      sw.style.color = cellFg(val);
+      sw.style.borderColor = val === selectedValue ? 'var(--accent)' : (cellFg(val) + '44');
+      sw.textContent = val;
+      sw.title = `Paint ${val}  (right-click to remove)`;
+      sw.addEventListener('click', () => selectValue(val));
+      sw.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        if (palette.length <= 1) return;
+        palette.splice(i, 1);
+        if (selectedValue === val) selectValue(palette[0]);
+        else buildPalette();
+      });
+      container.appendChild(sw);
+    });
+
+    // Add swatch
+    const add = document.createElement('div');
+    add.className = 'swatch swatch-add';
+    add.textContent = '+';
+    add.title = 'Add custom value to palette';
+    add.addEventListener('click', addCustomToPalette);
+    container.appendChild(add);
+  }
+
+  function selectValue(val) {
+    selectedValue = val;
+    document.getElementById('custom-val').value = val;
+    document.getElementById('mode-label').textContent = `Painting ${val} — click or drag`;
+    buildPalette();
+  }
+
+  function addCustomToPalette() {
+    const v = parseFloat(document.getElementById('custom-val').value);
+    if (isNaN(v)) return;
+    if (!palette.includes(v)) palette.push(v);
+    selectValue(v);
+  }
+
+  // Live custom input — just changes paint value without adding to palette
+  document.getElementById('custom-val').addEventListener('input', function() {
+    const v = parseFloat(this.value);
+    if (!isNaN(v)) {
+      selectedValue = v;
+      document.getElementById('mode-label').textContent = `Painting ${v} — click or drag`;
+      buildPalette();
+    }
+  });
+
+  // ── Controls ───────────────────────────────────────────────────────────────
+  function applySize() {
+    const r = Math.max(1, Math.min(500, parseInt(document.getElementById('input-rows').value) || 10));
+    const c = Math.max(1, Math.min(500, parseInt(document.getElementById('input-cols').value) || 10));
+    initData(r, c);
+    updateMeta();
+    resizeCanvas();
+    drawGrid();
+    renderOutput();
+  }
+
+  function updateMeta() {
+    document.getElementById('dim-label').textContent = `${rows}×${cols}`;
+    document.getElementById('cell-count').textContent = (rows * cols).toLocaleString();
+  }
+
+  function fillRandom() {
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        data[r][c] = Math.floor(Math.random() * 10);
+    drawGrid(); renderOutput();
+  }
+
+  function fillAll() {
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        data[r][c] = selectedValue;
+    drawGrid(); renderOutput();
+  }
+
+  function clearAll() {
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        data[r][c] = 0;
+    drawGrid(); renderOutput();
+  }
+
+  // ── Output ─────────────────────────────────────────────────────────────────
+  // Debounce for large grids
+  let outputTimer = null;
+  function renderOutput() {
+    clearTimeout(outputTimer);
+    outputTimer = setTimeout(_renderOutput, 120);
+  }
+
+  function _renderOutput() {
+    const fmt = document.getElementById('fmt-select').value;
+    const name = document.getElementById('var-name').value || 'grid';
+    const big = rows * cols > 4000;
+
+    let code = '';
+    if (fmt === 'inline' || big) {
+      const inner = data.map(row => `<span class="token-bracket">[</span>${row.map(n=>`<span class="token-num">${n}</span>`).join('<span class="token-comma">,</span>')}<span class="token-bracket">]</span>`).join('<span class="token-comma">,</span>');
+      code = `<span class="token-kw">const</span> <span class="token-name">${name}</span> <span class="token-bracket">= [</span>${inner}<span class="token-bracket">];</span>`;
+    } else if (fmt === 'pretty') {
+      const lines = [`<span class="token-kw">const</span> <span class="token-name">${name}</span> <span class="token-bracket">= [</span>`];
+      data.forEach((row, ri) => {
+        const comma = ri < rows - 1 ? '<span class="token-comma">,</span>' : '';
+        lines.push(`  <span class="token-bracket">[</span>${row.map(n=>`<span class="token-num">${n}</span>`).join('<span class="token-comma">, </span>')}<span class="token-bracket">]</span>${comma}`);
+      });
+      lines.push(`<span class="token-bracket">];</span>`);
+      code = lines.join('\n');
+    } else {
+      const lines = [`<span class="token-kw">const</span> <span class="token-name">${name}</span><span class="token-bracket">: number[][] = [</span>`];
+      data.forEach((row, ri) => {
+        const comma = ri < rows - 1 ? '<span class="token-comma">,</span>' : '';
+        lines.push(`  <span class="token-bracket">[</span>${row.map(n=>`<span class="token-num">${n}</span>`).join('<span class="token-comma">, </span>')}<span class="token-bracket">]</span>${comma}`);
+      });
+      lines.push(`<span class="token-bracket">];</span>`);
+      code = lines.join('\n');
+    }
+    document.getElementById('output-code').innerHTML = code;
+  }
+
+  function copyOutput() {
+    const name = document.getElementById('var-name').value || 'grid';
+    const fmt = document.getElementById('fmt-select').value;
+    let text = '';
+    if (fmt === 'inline') {
+      text = `const ${name} = [${data.map(r=>`[${r.join(',')}]`).join(',')}];`;
+    } else if (fmt === 'pretty') {
+      text = `const ${name} = [\n${data.map(row=>`  [${row.join(', ')}]`).join(',\n')}\n];`;
+    } else {
+      text = `const ${name}: number[][] = [\n${data.map(row=>`  [${row.join(', ')}]`).join(',\n')}\n];`;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied!'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+    });
+  }
+
+  // Enter key on size inputs
+  document.getElementById('input-rows').addEventListener('keydown', e => { if (e.key === 'Enter') applySize(); });
+  document.getElementById('input-cols').addEventListener('keydown', e => { if (e.key === 'Enter') applySize(); });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  initData(10, 10);
+  updateMeta();
+  resizeCanvas();
+  buildPalette();
+  drawGrid();
+  renderOutput();
+</script>
+</body>
+</html>

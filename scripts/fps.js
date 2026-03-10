@@ -2,6 +2,12 @@ const screen = document.getElementById('fps');
 screen.width = 500;
 screen.height = 500;
 const ctx = screen.getContext("2d");
+
+const scratchCanvas = document.createElement('canvas');
+scratchCanvas.width = screen.width;
+scratchCanvas.height = screen.height;
+const scratchCtx = scratchCanvas.getContext('2d');
+
 const bgColor = '#111';
 const fgColor = '#5f5';
 let myAssets;
@@ -13,19 +19,59 @@ let animationPlaying = false;
 let sprites = [];
 
 const keys = {};
+let rayCastRows = {};
 let mouseDeltaX = 0;
 
-let levelMap = [[1,1,1,1,1],
-                  [1,0,0,0,1],
-                  [1,0,1,0,1],
-                  [1,0,0,0,1],
-                  [1,1,1,1,1]];
+const walls = {'1': null, '2': null};
+const spriteTypes = {};
+let visibleTiles = [];
+
+let tick = 0;
+
+let levelMap = [
+  [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+  [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 3, 1, 0, 0, 0],
+  [2, 0, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 4, 0, 1, 1, 0, 0, 0],
+  [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 3, 1, 0, 0, 0],
+  [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 4, 0, 1, 1, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 3, 1, 0, 0, 0],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [2, 0, 0, 0, 1, 1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 4, 0, 0, 2],
+  [1, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [2, 0, 0, 0, 1, 1, 0, 4, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 2],
+  [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [2, 0, 4, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 0, 4, 0, 4, 0, 4, 0, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 2, 1, 2, 1, 1, 0, 0, 0, 0, 0]
+];
+
+let lightMap = [];
+
+let lightSource = [];
 
 const player = {
     x : 1.5,
     y : 1.5,
     angle : ((Math.PI / 8) * 3),
     speed : 0.1
+};
+
+const imageBuffer = ctx.createImageData(screen.width, screen.height);
+const pixels = imageBuffer.data;
+
+const getTextureData = (img) => {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = img.width;
+    tempCanvas.height = img.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(img, 0, 0);
+    return tempCtx.getImageData(0, 0, img.width, img.height).data;
 };
 
 const loadImage = (url) => {
@@ -61,7 +107,7 @@ const generateEmptyMap = (size) => {
     for (let y = 0; y < size; y++) {
         newMap.push([]);
         for (let x = 0; x < size; x++) {
-            newMap[y].push(1);
+            newMap[y].push(0);
         }
     }
     return newMap;
@@ -201,21 +247,27 @@ const castRay = ({x, y}, angle, map) => {
     let tempX = x;
     let tempY = y;
     let side = 0;
+    // let tile = {x: Math.floor(tempX), y: Math.floor(tempY)}
+    // if (!visibleTiles.includes(tile)) visibleTiles.push(tile);
 
     for (let i = 0; i < steps*bitsize; i++) {
         tempX += dx;
-        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] === 1) { 
+        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] in walls) { 
             side = 1;
             break;
         }
+        // tile = {x: Math.floor(tempX), y: Math.floor(tempY)}
+        // if (!visibleTiles.includes(tile)) visibleTiles.push(tile);
         tempY += dy;
-        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] === 1){ 
+        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] in walls){ 
             side = 0;
             break;
         }
+        // tile = {x: Math.floor(tempX), y: Math.floor(tempY)}
+        // if (!visibleTiles.includes(tile)) visibleTiles.push(tile);
     }
 
-    return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side};
+    return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side, tex: walls[map[Math.floor(tempY)][Math.floor(tempX)]]};
 };
 
 const toRad = (angle) => angle * Math.PI / 180;
@@ -224,6 +276,7 @@ const drawRayCast = ({x, y}, angle, map) => {
     const rays = screen.width/2;
     const maxAngle = 45; //fov
     const rayAngle = maxAngle/rays;
+    visibleTiles = [];
 
     for (let i = 0; i < rays; i++) {
         const currentRay = toRad(i * rayAngle) + (angle - toRad(maxAngle/2));
@@ -240,12 +293,18 @@ const drawRayCast = ({x, y}, angle, map) => {
         const drawStart = (screen.height / 2) - (lineHeight / 2);
         const drawEnd = (screen.height / 2) + (lineHeight / 2);
         const stripWidth = screen.width / rays;
-        const texture = (Math.floor(result.hitX) + Math.floor(result.hitY)) % 7 != 0 ? myAssets.wall : myAssets.tileWall; 
+        const texture = result.tex; 
+
+        rayCastRows[screenX] = {drawStart, drawEnd};
+
         zBuffer[Math.floor(screenX)] = dist;
         ctx.drawImage(texture, texX, 0, 1, 32, screenX, drawStart, stripWidth, lineHeight);
 
         const maxDist = 15; // The distance where things become invisible
-        let opacity = dist / maxDist; 
+        // let opacity = dist / maxDist; 
+        let lightVal = lightMap[Math.floor(result.hitY)][Math.floor(result.hitX)];
+        lightVal = 1 - ((1/7) * (lightVal+2))
+        let opacity = lightVal;
         if (side === 1) opacity += 0.2;
         if (opacity > 1) opacity = 1; // Clamp to 1
 
@@ -257,7 +316,41 @@ const drawRayCast = ({x, y}, angle, map) => {
         //         { x: screenX, y: drawEnd },
         //         `rgb(${color[0]}, ${color[1]}, ${color[2]})`
         //     );
+
     }
+};
+
+const screenToWorld = (screenX, screenY, player) => {
+    const rayAngle = toRad(45 / (screen.width / 2));
+    screenX = Math.floor(screenX / 2);
+    const angleToLocation = rayAngle * screenX  + (player.angle - toRad(45/2));
+    let distanceToLocation = Math.abs(screenY - (screen.height / 2)) * 2;
+    distanceToLocation = 1 / (distanceToLocation / screen.height);
+    const worldX = player.x + (Math.cos(angleToLocation) * distanceToLocation);
+    const worldY = player.y + (Math.sin(angleToLocation) * distanceToLocation);
+    return {x: worldX, y: worldY};
+}    
+
+const drawTexturedFloor = () => {
+    pixels.fill(0);
+    for (let y = 0; y < screen.height; y++) {
+        for (let x = 0; x < screen.width; x++) {
+            if (y > rayCastRows[x - (x % 2)].drawEnd-1 || y < rayCastRows[x - (x % 2)].drawStart+1) {
+                    const screenIndex = (y * screen.width + x) * 4;
+                    const worldLocation = screenToWorld(x, y, player);
+                    const lightLevel = lightMap[Math.floor(worldLocation.y)][Math.floor(worldLocation.x)];
+                    const lightModifier = ((1/6) * (lightLevel+2));
+                    pixels[screenIndex]     = 50 * lightModifier;     // R
+                    pixels[screenIndex + 1] = 50 * lightModifier; // G
+                    pixels[screenIndex + 2] = 50 * lightModifier; // B
+                    pixels[screenIndex + 3] = 255;// A
+            }
+        }
+    }
+
+    scratchCtx.putImageData(imageBuffer, 0, 0);
+
+    ctx.drawImage(scratchCanvas, 0, 0);
 };
 
 const drawSprite = (sprite) => {
@@ -287,6 +380,7 @@ const drawSprite = (sprite) => {
         };
     }
     const spriteTex = sprite.tex;
+    const texNum = Math.floor(tick / 10) % sprite.animations;
     const distanceToSprite = sprite.dist;
     const screenX = getSpriteScreenX(sprite).x
 
@@ -297,7 +391,10 @@ const drawSprite = (sprite) => {
     for (let x = 0; x < spriteSize; x++) {
         let columnX = Math.floor(screenX - (spriteSize/2) + x);
         if (distanceToSprite < zBuffer[columnX] && distanceToSprite < 15 && !outOfBounds(columnX, screen.width)) {
-            ctx.drawImage(spriteTex, Math.floor(x/spriteSize * 32), 0, 1, 32, columnX, drawStart, 2, spriteSize);
+            ctx.drawImage(spriteTex, Math.floor(x/spriteSize * 32) + (texNum*32), 0, 1, 32, columnX, drawStart, 2, spriteSize);
+            if (sprite.animations > 0) {
+                animationPlaying = true;
+            }
             // if (sprite.dimmable) {
             //     const maxDist = 15; // The distance where things become invisible
             //     let opacity = distanceToSprite / maxDist; 
@@ -331,7 +428,8 @@ const addLamps = (mapSize) => {
                     tex: myAssets.lamp,
                     dist: 110,
                     dimmable: false,
-                    breakable: false
+                    breakable: false,
+                    animations: 1,
                 }); 
             }
         }
@@ -345,10 +443,11 @@ const addPots = (mapSize) => {
                 sprites.push({
                     x: x + 0.5,
                     y: y + 0.5,
-                    tex: myAssets.pot,
+                    tex: myAssets.tube,
                     dist: 110,
                     dimmable: false,
-                    breakable: true
+                    breakable: true,
+                    animations: 2,
                 }); 
             }
         }
@@ -377,16 +476,88 @@ const drawCRT = () => {
     }
 };
 
+const drawSkybox = (img) => {
+    let rotation = player.angle % (Math.PI * 2);
+    if (rotation < 0) rotation += Math.PI * 2;
+
+    let offset = (rotation / (Math.PI * 2)) * img.width * 8;
+
+    const x = -(offset % img.width);
+
+    ctx.drawImage(img, x, 0, img.width, screen.height);
+    ctx.drawImage(img, x + img.width, 0, img.width, screen.height);
+    ctx.drawImage(img, x - img.width, 0, img.width, screen.height);
+};
+
+function populateMap(map, size) {
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            if (map[y][x] in spriteTypes) {
+                sprites.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    tex: spriteTypes[map[y][x]],
+                    dist: 110,
+                    dimmable: false,
+                    breakable: false,
+                    animations: Math.floor(spriteTypes[map[y][x]].width / 32)
+                });
+                map[y][x] = 0;
+            }
+        }
+    }
+    return map;
+}
+
+function initLightMap(lightMap, lightSource, map, size) {
+    const LIGHT_RADIUS = 4;
+    const LIGHT_STRENGTH = 5;
+
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            if (lightSource.includes(map[y][x])) {
+                lightMap[y][x] = LIGHT_STRENGTH;
+
+                // Spread light in all directions
+                for (let tx = -LIGHT_RADIUS; tx <= LIGHT_RADIUS; tx++) {
+                    for (let ty = -LIGHT_RADIUS; ty <= LIGHT_RADIUS; ty++) {
+                        if (tx === 0 && ty === 0) continue;
+
+                        const nx = x + tx;
+                        const ny = y + ty;
+
+                        // Bounds check
+                        if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
+
+                        // Manhattan distance falloff — swap for Math.sqrt(tx*tx + ty*ty) if preferred
+                        const dist = Math.abs(tx) + Math.abs(ty);
+                        const lightValue = LIGHT_STRENGTH - dist;
+
+                        if (lightValue > 0) {
+                            // Keep the brightest value from any light source
+                            lightMap[ny][nx] = Math.max(lightMap[ny][nx], lightValue);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return lightMap;
+}
+
 function displayScreen() {
     clear();
+    animationPlaying = false;
+    drawSkybox(myAssets.skybox);
     drawRayCast({x: player.x, y: player.y}, player.angle, levelMap);
+    drawTexturedFloor();
     drawSprites();
     if (attackState > 0) {
         animationPlaying = true;
         attackState--;
         const spriteNum = 5-Math.floor(attackState/3);
         ctx.drawImage(myAssets.arm, spriteNum * 32, 0, 32, 32, screen.width - (256+64), screen.height - 256, 256, 256);
-        if (attackState <= 0) animationPlaying = false;
     }
     drawCRT();
 }
@@ -394,29 +565,41 @@ function displayScreen() {
 async function init() {
 
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall, barrel, lamp, pot, arm] = await Promise.all([
+    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
         loadImage('./assets/barrel.png'),
         loadImage('./assets/lamp.png'),
         loadImage('./assets/pot.png'),
         loadImage('./assets/arm.png'),
+        loadImage('./assets/mountain-skybox.png'),
+        loadImage('./assets/tube.png'),
     ]);
 
-    // Store them globally or pass them to your loop
-    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3') };
+    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3'), skybox, tube };
 
-    levelMap = generateEmptyMap(20);
-    levelMap = prims(levelMap, 20);
-    levelMap = removeRandomCells(levelMap, 20);
+    walls['1'] = wall;
+    walls['2'] = tileWall;
+    spriteTypes['3'] = tube;
+    spriteTypes['4'] = lamp;
+    lightSource = [2, 4];
 
-    addLamps(20);
-    addPots(15);
+    lightMap = generateEmptyMap(20);
 
-    const startLocation = pickPlayerStart(levelMap, 20);
+    lightMap = initLightMap(lightMap, lightSource, levelMap, 20);
+    console.log(lightMap);
 
-    player.x = startLocation.x;
-    player.y = startLocation.y;
+    levelMap = populateMap(levelMap, 20);
+
+    // levelMap = generateEmptyMap(20);
+    // levelMap = prims(levelMap, 20);
+    // levelMap = removeRandomCells(levelMap, 20);
+
+    // addLamps(20);
+    // addPots(15);
+    player.x = 1.25;
+    player.y = 1.25;
+
 
     player.angle = toRad(45);
     displayScreen();
@@ -439,6 +622,7 @@ async function init() {
 function update() {
     let changed = false;
     let mapSize = 20;
+    tick += 1;
     // if (keys['ArrowLeft']) {
     //     player.angle -= (Math.PI / 90);
     //     changed = true;
