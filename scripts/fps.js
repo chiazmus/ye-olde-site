@@ -51,6 +51,7 @@ let levelMap = [
   [0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 2, 1, 2, 1, 1, 0, 0, 0, 0, 0]
 ];
 
+
 let lightMap = [];
 
 let lightSource = [];
@@ -323,16 +324,15 @@ const drawTexturedFloor = () => {
 
     for (let y = 0; y < screen.height; y++) {
 
-        // Pre-compute the distance for this entire row (it's the same for every x)
+
         let distanceToLocation = Math.abs(y - halfHeight) * 2;
-        if (distanceToLocation === 0) continue; // avoid division by zero on horizon
+        if (distanceToLocation === 0) continue;
         distanceToLocation = screen.height / distanceToLocation;
 
         for (let x = 0; x < screen.width; x++) {
             const col = rayCastRows[x - (x % 2)];
             if (y >= col.drawEnd - 1 || y <= col.drawStart + 1) {
 
-                // Pre-compute angle per-column, not per-pixel
                 const angleToLocation = rayAngle * Math.floor(x / 2) + (player.angle - halfFov);
 
                 const worldX = player.x + Math.cos(angleToLocation) * distanceToLocation;
@@ -607,7 +607,6 @@ async function init() {
     // addPots(15);
     player.x = 1.25;
     player.y = 1.25;
-
 
     player.angle = toRad(45);
     displayScreen();
