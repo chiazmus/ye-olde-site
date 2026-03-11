@@ -22,35 +22,56 @@ const keys = {};
 let rayCastRows = {};
 let mouseDeltaX = 0;
 
-const walls = {'1': null, '2': null};
+const walls = {};
 const spriteTypes = {};
 let visibleTiles = [];
 
 let tick = 0;
 
 let levelMap = [
-  [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-  [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 3, 1, 0, 0, 0],
-  [2, 0, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 4, 0, 1, 1, 0, 0, 0],
-  [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 3, 1, 0, 0, 0],
-  [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 4, 0, 1, 1, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 3, 1, 0, 0, 0],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [2, 0, 0, 0, 1, 1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 4, 0, 0, 2],
-  [1, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [2, 0, 0, 0, 1, 1, 0, 4, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 2],
-  [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [2, 0, 4, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 1, 0, 4, 0, 4, 0, 4, 0, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 2, 1, 2, 1, 1, 0, 0, 0, 0, 0]
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 6, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 5, 0, 5, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 1, 3, 1, 3, 1, 1, 1, 0, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 4, 0, 0, 4, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 5, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 1, 3, 0, 5, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 3, 0, 3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 1, 3, 1, 1, 1, 3, 5, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 1, 3, 0, 0, 0, 5, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 6, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 2, 1, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
 
+const mapSize = 40;
 
 let lightMap = [];
 
@@ -240,7 +261,6 @@ const pickPlayerStart = (map, size) => {
 const distance = (p1, p2) => Math.sqrt(Math.pow(p1.x-p2.x, 2)+Math.pow(p1.y-p2.y, 2));
 
 const castRay = ({x, y}, angle, map) => {
-    const mapSize = map[0].length;
     const bitsize = 32;
     const dx = Math.cos(angle) / bitsize;
     const dy = Math.sin(angle) / bitsize;
@@ -256,7 +276,7 @@ const castRay = ({x, y}, angle, map) => {
             break;
         }
         tempY += dy;
-        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] in walls){ 
+        if (outOfBounds(Math.floor(tempY), mapSize) || outOfBounds(Math.floor(tempX), mapSize) || map[Math.floor(tempY)][Math.floor(tempX)] in walls){
             side = 0;
             break;
         }
@@ -281,7 +301,9 @@ const drawRayCast = ({x, y}, angle, map) => {
 
         let wallX = (side === 1) ? result.hitY : result.hitX;
         wallX -= Math.floor(wallX);
-        const texX = Math.floor(wallX * 32); //This is the texture x...
+        let texX = Math.floor(wallX * 32); //This is the texture x...
+        if (side === 1 && Math.cos(currentRay) > 0) texX = 31 - texX;
+        if (side === 0 && Math.sin(currentRay) < 0) texX = 31 - texX;
         const color = [Math.floor((85 * (1 - (dist / 15)))/8)*8, Math.floor((255 * (1 - (dist / 15)))/8)*8, Math.floor((85 * (1-(dist / 15)))/8)*8];
         const lineHeight = (1/dist) * (screen.height);
         const screenX = i * (screen.width / rays);
@@ -554,6 +576,20 @@ function initLightMap(lightMap, lightSource, map, size) {
     return lightMap;
 }
 
+function placePlayer(map, size) {
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            if (map[y][x] == -1) {
+                map[y][x] = 0;
+                player.x = x + 0.25;
+                player.y = y + 0.25;
+                return map;
+            }
+        }
+    }
+    return map;
+}
+
 function displayScreen() {
     clear();
     animationPlaying = false;
@@ -573,7 +609,7 @@ function displayScreen() {
 async function init() {
 
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube] = await Promise.all([
+    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
         loadImage('./assets/barrel.png'),
@@ -582,22 +618,26 @@ async function init() {
         loadImage('./assets/arm.png'),
         loadImage('./assets/mountain-skybox.png'),
         loadImage('./assets/tube.png'),
+        loadImage('./assets/bannerWall.png'),
+        loadImage('./assets/potionTable.png'),
     ]);
 
-    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3'), skybox, tube };
+    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3'), skybox, tube, bannerWall, potionTable };
 
     walls['1'] = wall;
     walls['2'] = tileWall;
-    spriteTypes['3'] = tube;
-    spriteTypes['4'] = lamp;
-    lightSource = [2, 4];
+    walls['3'] = bannerWall;
+    spriteTypes['4'] = tube;
+    spriteTypes['5'] = lamp;
+    spriteTypes['6'] = potionTable;
+    lightSource = [2, 5];
 
-    lightMap = generateEmptyMap(20);
+    lightMap = generateEmptyMap(mapSize);
 
-    lightMap = initLightMap(lightMap, lightSource, levelMap, 20);
+    lightMap = initLightMap(lightMap, lightSource, levelMap, mapSize);
     console.log(lightMap);
-
-    levelMap = populateMap(levelMap, 20);
+    levelMap = placePlayer(levelMap, mapSize);
+    levelMap = populateMap(levelMap, mapSize);
 
     // levelMap = generateEmptyMap(20);
     // levelMap = prims(levelMap, 20);
@@ -605,8 +645,8 @@ async function init() {
 
     // addLamps(20);
     // addPots(15);
-    player.x = 1.25;
-    player.y = 1.25;
+    // player.x = 1.25;
+    // player.y = 1.25;
 
     player.angle = toRad(45);
     displayScreen();
@@ -628,7 +668,6 @@ async function init() {
 // Game Loop
 function update() {
     let changed = false;
-    let mapSize = 20;
     tick += 1;
     // if (keys['ArrowLeft']) {
     //     player.angle -= (Math.PI / 90);
