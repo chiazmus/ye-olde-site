@@ -130,7 +130,8 @@ aside .card {
 #fps {
     width: clamp(100px, 80%, 800px);
     height: auto;
-    align-self: center;    
+    align-self: center;   
+    filter: grayscale(70%); 
 }
 
 #board {

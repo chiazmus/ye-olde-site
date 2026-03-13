@@ -12,6 +12,7 @@ const bgColor = '#111';
 const fgColor = '#5f5';
 let myAssets;
 let zBuffer = {};
+let musicPlaying = false;
 
 let attackState = 0;
 let animationPlaying = false;
@@ -19,11 +20,13 @@ let animationPlaying = false;
 let sprites = [];
 
 const keys = {};
+const lastKeys = {};
 let rayCastRows = {};
 let mouseDeltaX = 0;
 
 const walls = {};
 const spriteTypes = {};
+let breakables = [];
 let visibleTiles = [];
 
 let tick = 0;
@@ -35,34 +38,34 @@ let levelMap = [
   [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 6, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 5, 0, 5, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 5, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 1, 3, 1, 3, 1, 1, 1, 0, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 4, 0, 0, 4, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 5, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 1, 3, 0, 5, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 3, 0, 3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 1, 3, 1, 1, 1, 3, 5, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 1, 3, 0, 0, 0, 5, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 6, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 2, 1, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 3, 0, 3, 1, 1, 1, 1, 1, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 1, 0, 1, 1, 1, 0, 6, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 4, 0, 0, 4, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 3, 0, 3, 1, 1, 7, 5, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 1, 1, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 0, 5, 0, 1, 1, 0, 5, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 0, 0, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 0, 5, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 1, 3, 0, 5, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 7, 1, 7, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 3, 1, 3, 1, 1, 1, 3, 5, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 5, 1, 1, 1, 5, 0, 3, 1, 2, 2, 1, 3, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 7, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [2, 0, 0, 0, 5, 0, 0, 0, 3, 1, 2, 2, 1, 3, 0, 6, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 6, 0, 0, 0, 6, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 3, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 5, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -70,7 +73,6 @@ let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
-
 const mapSize = 40;
 
 let lightMap = [];
@@ -264,7 +266,7 @@ const castRay = ({x, y}, angle, map) => {
     const bitsize = 32;
     const dx = Math.cos(angle) / bitsize;
     const dy = Math.sin(angle) / bitsize;
-    const steps = 20;
+    const steps = 30;
     let tempX = x;
     let tempY = y;
     let side = 0;
@@ -282,7 +284,7 @@ const castRay = ({x, y}, angle, map) => {
         }
     }
 
-    return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side, tex: walls[map[Math.floor(tempY)][Math.floor(tempX)]]};
+    return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side, tex: walls[map[Math.floor(tempY)][Math.floor(tempX)]] || walls[1]};
 };
 
 const toRad = (angle) => angle * Math.PI / 180;
@@ -507,16 +509,18 @@ const drawCRT = () => {
 };
 
 const drawSkybox = (img) => {
+    // skyboxWidth represents the full 360° panorama width
+    const skyboxWidth = screen.width * (360 / 45); // e.g. screen.width * 6 for 60° FOV
+
     let rotation = player.angle % (Math.PI * 2);
     if (rotation < 0) rotation += Math.PI * 2;
 
-    let offset = (rotation / (Math.PI * 2)) * img.width * 8;
+    // Map full rotation to full skybox width
+    let offset = (rotation / (Math.PI * 2)) * skyboxWidth;
+    const x = -(offset % skyboxWidth);
 
-    const x = -(offset % img.width);
-
-    ctx.drawImage(img, x, 0, img.width, screen.height);
-    ctx.drawImage(img, x + img.width, 0, img.width, screen.height);
-    ctx.drawImage(img, x - img.width, 0, img.width, screen.height);
+    ctx.drawImage(img, x,                  screen.height/2 - (skyboxWidth / 8), skyboxWidth, skyboxWidth / 4);
+    ctx.drawImage(img, x + skyboxWidth,    screen.height/2 - (skyboxWidth / 8), skyboxWidth, skyboxWidth / 4);
 };
 
 function populateMap(map, size) {
@@ -529,7 +533,7 @@ function populateMap(map, size) {
                     tex: spriteTypes[map[y][x]],
                     dist: 110,
                     dimmable: false,
-                    breakable: false,
+                    breakable: breakables.includes(map[y][x]) || false,
                     animations: Math.floor(spriteTypes[map[y][x]].width / 32)
                 });
                 map[y][x] = 0;
@@ -622,7 +626,10 @@ async function init() {
         loadImage('./assets/potionTable.png'),
     ]);
 
-    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3'), skybox, tube, bannerWall, potionTable };
+    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
+        skybox, tube, bannerWall, potionTable };
+
+    myAssets.stormTheKeep.loop = true;
 
     walls['1'] = wall;
     walls['2'] = tileWall;
@@ -630,6 +637,8 @@ async function init() {
     spriteTypes['4'] = tube;
     spriteTypes['5'] = lamp;
     spriteTypes['6'] = potionTable;
+    spriteTypes['7'] = pot;
+    breakables.push(7);
     lightSource = [2, 5];
 
     lightMap = generateEmptyMap(mapSize);
@@ -651,10 +660,29 @@ async function init() {
     player.angle = toRad(45);
     displayScreen();
 
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('keydown', (e) => {
+        lastKeys[e.code] = keys[e.code] ? true : false;
+        keys[e.code] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        lastKeys[e.code] = keys[e.code] ? true : false;
+        keys[e.code] = false;
+    });
+
     screen.addEventListener('click', () => {
-    screen.requestPointerLock(); // Locks mouse to the canvas
+        if (document.pointerLockElement !== screen) screen.requestPointerLock();
+        else if (attackState <= 0) {
+            attackState = (3*6);
+            animationPlaying = true;
+            for (let i = 0; i < sprites.length; i++) {
+                if (sprites[i].dist <= 1 && sprites[i].breakable) {
+                    sprites.splice(i, 1);
+                    myAssets.breakSound.play();
+                    break;
+                }
+            }        
+        }
     });
     window.addEventListener('mousemove', (e) => {
         if (document.pointerLockElement === screen) {
@@ -686,7 +714,8 @@ function update() {
         changed = true;
     }
 
-    if ((keys['KeySpace'] || keys['KeyE']) && (document.pointerLockElement === screen)) {
+    if ((lastKeys['KeyE'] && (!keys['KeyE'])) && (document.pointerLockElement === screen)) {
+        lastKeys['KeyE'] = keys['KeyE'];
         attackState = (3*6);
         animationPlaying = true;
         for (let i = 0; i < sprites.length; i++) {
@@ -704,7 +733,7 @@ function update() {
         let tempX = player.x + dx * player.speed;
         let tempY = player.y + dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
             player.x = tempX;
             player.y = tempY
         }
@@ -718,7 +747,7 @@ function update() {
         let tempX = player.x - dx * player.speed;
         let tempY = player.y - dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
             player.x = tempX;
             player.y = tempY
         }
@@ -732,7 +761,7 @@ function update() {
         let tempX = player.x + dx * player.speed;
         let tempY = player.y + dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
             player.x = tempX;
             player.y = tempY
         }
@@ -746,12 +775,19 @@ function update() {
         let tempX = player.x - dx * player.speed;
         let tempY = player.y - dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] !== 1) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
             player.x = tempX;
             player.y = tempY
         }
 
         changed = true;
+    }
+
+    if (lastKeys['KeyT'] && (!keys['KeyT']) && (document.pointerLockElement === screen)) {
+        lastKeys['KeyT'] = keys['KeyT'];
+        if (!musicPlaying) myAssets.stormTheKeep.play();
+        else myAssets.stormTheKeep.pause();
+        musicPlaying = !musicPlaying;
     }
 
     if (changed || animationPlaying) displayScreen();

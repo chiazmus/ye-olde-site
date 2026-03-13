@@ -16,6 +16,7 @@
     --accent: #4fffb0;
     --accent2: #ff6b6b;
     --accent3: #ffd93d;
+    --accent4: #7eb8ff;
     --text: #c8d0e8;
     --muted: #5a6480;
   }
@@ -73,6 +74,46 @@
 
   .main { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 16px; }
 
+  /* === IMPORT PANEL === */
+  .import-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden;
+  }
+  .import-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+    cursor: pointer; user-select: none;
+  }
+  .import-title {
+    font-size: 11px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .import-title::before { content:''; width:6px; height:6px; background:var(--accent4); border-radius:50%; box-shadow:0 0 8px var(--accent4); }
+  .import-toggle { font-size: 11px; color: var(--muted); transition: transform 0.2s; }
+  .import-toggle.open { transform: rotate(180deg); }
+
+  .import-body { padding: 14px 16px; display: none; }
+  .import-body.open { display: block; }
+
+  .import-body textarea {
+    width: 100%; height: 90px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--accent3); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 10px 12px; outline: none; resize: vertical;
+    transition: border-color 0.15s;
+  }
+  .import-body textarea:focus { border-color: var(--accent4); }
+  .import-body textarea::placeholder { color: var(--muted); }
+
+  .import-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .import-hint { font-size: 10px; color: var(--muted); margin-left: auto; }
+
+  .import-status {
+    font-size: 11px; padding: 4px 10px; border-radius: 5px; display: none;
+  }
+  .import-status.ok { display: inline-block; background: rgba(79,255,176,0.12); color: var(--accent); border: 1px solid rgba(79,255,176,0.3); }
+  .import-status.err { display: inline-block; background: rgba(255,107,107,0.12); color: var(--accent2); border: 1px solid rgba(255,107,107,0.3); }
+
   /* === PAINT PALETTE === */
   .palette-panel {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -124,13 +165,45 @@
   }
   .mode-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px var(--accent); flex-shrink: 0; }
 
+  /* === DRAW TOOLS === */
+  .tools-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .tools-label { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+
+  .tool-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border);
+    background: none; color: var(--muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tool-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .tool-btn:hover { border-color: var(--text); color: var(--text); }
+  .tool-btn.active {
+    border-color: var(--accent4); color: var(--accent4);
+    background: rgba(126,184,255,0.1);
+    box-shadow: 0 0 0 1px rgba(126,184,255,0.2);
+  }
+
+  .rect-mode-wrap { display: flex; align-items: center; gap: 6px; }
+  .rect-mode-label { font-size: 10px; color: var(--muted); }
+  .toggle-group { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .toggle-opt {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+    padding: 5px 10px; background: none; border: none; color: var(--muted); cursor: pointer;
+    transition: all 0.15s; letter-spacing: 0.05em;
+  }
+  .toggle-opt + .toggle-opt { border-left: 1px solid var(--border); }
+  .toggle-opt.active { background: rgba(126,184,255,0.15); color: var(--accent4); }
+
   /* === GRID === */
   .grid-wrap {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px; overflow: auto; position: relative;
   }
 
-  .grid-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .grid-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
   .grid-meta { font-size: 11px; color: var(--muted); }
   .grid-meta strong { color: var(--accent); }
 
@@ -229,6 +302,22 @@
 
 <div class="main">
 
+  <!-- Import Panel -->
+  <div class="import-panel">
+    <div class="import-header" onclick="toggleImport()">
+      <span class="import-title">Import JS Array</span>
+      <span class="import-toggle" id="import-toggle">▼</span>
+    </div>
+    <div class="import-body" id="import-body">
+      <textarea id="import-input" placeholder="Paste a JS array here, e.g.:&#10;[[0,1,2],[3,4,5]]&#10;or: const grid = [[0,1],[2,3]];"></textarea>
+      <div class="import-actions">
+        <button class="btn btn-ghost" onclick="importArray()" style="border-color:var(--accent4);color:var(--accent4);background:rgba(126,184,255,0.08);">⬆ Import &amp; Load</button>
+        <span class="import-status" id="import-status"></span>
+        <span class="import-hint">Resizes grid to match array dimensions</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Paint Palette -->
   <div class="palette-panel">
     <span class="palette-label">Paint</span>
@@ -248,6 +337,31 @@
     <div class="mode-info">
       <span class="mode-dot"></span>
       <span id="mode-label">Click or drag to paint</span>
+    </div>
+  </div>
+
+  <!-- Draw Tools -->
+  <div class="tools-panel">
+    <span class="tools-label">Tool</span>
+    <button class="tool-btn active" id="tool-paint" onclick="setTool('paint')">
+      <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="12" r="3"/><path d="M4 9V3a1 1 0 0 1 2 0v.5l5-2a1 1 0 0 1 1 1.7L6 7v2z"/></svg>
+      Paint
+    </button>
+    <button class="tool-btn" id="tool-line" onclick="setTool('line')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="2" y1="14" x2="14" y2="2"/><circle cx="2" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14" cy="2" r="1.2" fill="currentColor" stroke="none"/></svg>
+      Line
+    </button>
+    <button class="tool-btn" id="tool-rect" onclick="setTool('rect')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="12" height="10" rx="1"/></svg>
+      Rect
+    </button>
+    <div class="palette-sep" id="rect-sep" style="display:none;"></div>
+    <div class="rect-mode-wrap" id="rect-mode-wrap" style="display:none;">
+      <span class="rect-mode-label">Fill:</span>
+      <div class="toggle-group">
+        <button class="toggle-opt active" id="rect-outline-btn" onclick="setRectMode('outline')">Outline</button>
+        <button class="toggle-opt" id="rect-fill-btn" onclick="setRectMode('fill')">Fill</button>
+      </div>
     </div>
   </div>
 
@@ -300,6 +414,12 @@
   let selectedValue = 0;
   let palette = [0, 1, -1, 2, 5, 10];
 
+  // Tool state
+  let currentTool = 'paint'; // 'paint' | 'line' | 'rect'
+  let rectMode = 'outline';  // 'outline' | 'fill'
+  let dragStart = null;      // { r, c } for line/rect preview
+  let previewData = null;    // data snapshot before preview
+
   // ── Colors ─────────────────────────────────────────────────────────────────
   function cellBg(val) {
     if (val === 0) return '#161922';
@@ -317,12 +437,17 @@
   }
 
   // ── Data ───────────────────────────────────────────────────────────────────
-  function initData(newRows, newCols) {
+  function initData(newRows, newCols, newData) {
     const nd = [];
     for (let r = 0; r < newRows; r++) {
       nd[r] = [];
-      for (let c = 0; c < newCols; c++)
-        nd[r][c] = (data[r] && data[r][c] !== undefined) ? data[r][c] : 0;
+      for (let c = 0; c < newCols; c++) {
+        if (newData) {
+          nd[r][c] = (newData[r] && newData[r][c] !== undefined) ? newData[r][c] : 0;
+        } else {
+          nd[r][c] = (data[r] && data[r][c] !== undefined) ? data[r][c] : 0;
+        }
+      }
     }
     rows = newRows; cols = newCols; data = nd;
   }
@@ -411,6 +536,46 @@
     }
   }
 
+  // ── Shape Helpers ──────────────────────────────────────────────────────────
+  // Bresenham's line
+  function lineCells(r0, c0, r1, c1) {
+    const cells = [];
+    let dr = Math.abs(r1 - r0), dc = Math.abs(c1 - c0);
+    let sr = r0 < r1 ? 1 : -1, sc = c0 < c1 ? 1 : -1;
+    let err = dr - dc;
+    let r = r0, c = c0;
+    while (true) {
+      cells.push([r, c]);
+      if (r === r1 && c === c1) break;
+      let e2 = 2 * err;
+      if (e2 > -dc) { err -= dc; r += sr; }
+      if (e2 < dr) { err += dr; c += sc; }
+    }
+    return cells;
+  }
+
+  function rectCells(r0, c0, r1, c1, filled) {
+    const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+    const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+    const cells = [];
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        if (filled || r === minR || r === maxR || c === minC || c === maxC) {
+          cells.push([r, c]);
+        }
+      }
+    }
+    return cells;
+  }
+
+  function applyShape(cells) {
+    cells.forEach(([r, c]) => {
+      if (r >= 0 && r < rows && c >= 0 && c < cols) {
+        data[r][c] = selectedValue;
+      }
+    });
+  }
+
   // ── Mouse/Touch ────────────────────────────────────────────────────────────
   function getCell(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -426,32 +591,122 @@
   function paint(clientX, clientY) {
     const cell = getCell(clientX, clientY);
     if (!cell) return;
-    if (data[cell.r][cell.c] === selectedValue) return; // no-op
+    if (data[cell.r][cell.c] === selectedValue) return;
     data[cell.r][cell.c] = selectedValue;
     drawCell(cell.r, cell.c);
     renderOutput();
   }
 
-  canvas.addEventListener('mousedown', e => { painting = true; paint(e.clientX, e.clientY); });
-  canvas.addEventListener('mousemove', e => {
-    const cell = getCell(e.clientX, e.clientY);
+  function onMouseDown(clientX, clientY) {
+    const cell = getCell(clientX, clientY);
+    if (!cell) return;
+    painting = true;
+
+    if (currentTool === 'paint') {
+      paint(clientX, clientY);
+    } else {
+      // Save snapshot for preview
+      dragStart = cell;
+      previewData = data.map(r => r.slice());
+    }
+  }
+
+  function onMouseMove(clientX, clientY) {
+    const cell = getCell(clientX, clientY);
     const tip = document.getElementById('tooltip');
+
     if (cell) {
       tip.style.display = 'block';
-      tip.style.left = (e.clientX + 14) + 'px';
-      tip.style.top = (e.clientY - 10) + 'px';
+      tip.style.left = (clientX + 14) + 'px';
+      tip.style.top = (clientY - 10) + 'px';
       tip.textContent = `[${cell.r},${cell.c}] = ${data[cell.r][cell.c]}`;
-      if (painting) paint(e.clientX, e.clientY);
     } else {
       tip.style.display = 'none';
     }
-  });
-  canvas.addEventListener('mouseup', () => painting = false);
-  canvas.addEventListener('mouseleave', () => { painting = false; document.getElementById('tooltip').style.display = 'none'; });
 
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); painting = true; paint(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (painting) paint(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-  canvas.addEventListener('touchend', () => painting = false);
+    if (!painting) return;
+
+    if (currentTool === 'paint') {
+      paint(clientX, clientY);
+    } else if (dragStart && cell) {
+      // Preview shape
+      const snapshot = previewData;
+      // Restore snapshot
+      data = snapshot.map(r => r.slice());
+
+      let cells;
+      if (currentTool === 'line') {
+        cells = lineCells(dragStart.r, dragStart.c, cell.r, cell.c);
+      } else {
+        cells = rectCells(dragStart.r, dragStart.c, cell.r, cell.c, rectMode === 'fill');
+      }
+      applyShape(cells);
+      drawGrid();
+
+      // Update tooltip
+      if (cell) tip.textContent = `[${cell.r},${cell.c}] → [${cell.r},${cell.c}]`;
+    }
+  }
+
+  function onMouseUp(clientX, clientY) {
+    if (!painting) return;
+    painting = false;
+
+    if ((currentTool === 'line' || currentTool === 'rect') && dragStart) {
+      const cell = getCell(clientX, clientY);
+      if (cell) {
+        data = previewData.map(r => r.slice());
+        let cells;
+        if (currentTool === 'line') {
+          cells = lineCells(dragStart.r, dragStart.c, cell.r, cell.c);
+        } else {
+          cells = rectCells(dragStart.r, dragStart.c, cell.r, cell.c, rectMode === 'fill');
+        }
+        applyShape(cells);
+        drawGrid();
+        renderOutput();
+      }
+      dragStart = null;
+      previewData = null;
+    }
+  }
+
+  canvas.addEventListener('mousedown', e => onMouseDown(e.clientX, e.clientY));
+  canvas.addEventListener('mousemove', e => onMouseMove(e.clientX, e.clientY));
+  canvas.addEventListener('mouseup', e => onMouseUp(e.clientX, e.clientY));
+  canvas.addEventListener('mouseleave', () => {
+    painting = false;
+    dragStart = null;
+    previewData = null;
+    document.getElementById('tooltip').style.display = 'none';
+  });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); onMouseDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); onMouseMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchend', e => { onMouseUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }, { passive: false });
+
+  // ── Tool Selection ─────────────────────────────────────────────────────────
+  function setTool(tool) {
+    currentTool = tool;
+    ['paint', 'line', 'rect'].forEach(t => {
+      document.getElementById('tool-' + t).classList.toggle('active', t === tool);
+    });
+    const showRectOpts = tool === 'rect';
+    document.getElementById('rect-sep').style.display = showRectOpts ? '' : 'none';
+    document.getElementById('rect-mode-wrap').style.display = showRectOpts ? '' : 'none';
+
+    const labels = { paint: 'Click or drag to paint', line: 'Click and drag to draw a line', rect: 'Click and drag to draw a rectangle' };
+    document.getElementById('mode-label').textContent = labels[tool];
+
+    // Update cursor
+    canvas.style.cursor = tool === 'paint' ? 'crosshair' : 'cell';
+  }
+
+  function setRectMode(mode) {
+    rectMode = mode;
+    document.getElementById('rect-outline-btn').classList.toggle('active', mode === 'outline');
+    document.getElementById('rect-fill-btn').classList.toggle('active', mode === 'fill');
+  }
 
   // ── Palette ────────────────────────────────────────────────────────────────
   function buildPalette() {
@@ -476,7 +731,6 @@
       container.appendChild(sw);
     });
 
-    // Add swatch
     const add = document.createElement('div');
     add.className = 'swatch swatch-add';
     add.textContent = '+';
@@ -488,7 +742,8 @@
   function selectValue(val) {
     selectedValue = val;
     document.getElementById('custom-val').value = val;
-    document.getElementById('mode-label').textContent = `Painting ${val} — click or drag`;
+    const labels = { paint: `Painting ${val} — click or drag`, line: `Drawing ${val} lines — drag`, rect: `Drawing ${val} rects — drag` };
+    document.getElementById('mode-label').textContent = labels[currentTool] || `Painting ${val}`;
     buildPalette();
   }
 
@@ -499,7 +754,6 @@
     selectValue(v);
   }
 
-  // Live custom input — just changes paint value without adding to palette
   document.getElementById('custom-val').addEventListener('input', function() {
     const v = parseFloat(this.value);
     if (!isNaN(v)) {
@@ -508,6 +762,88 @@
       buildPalette();
     }
   });
+
+  // ── Import ─────────────────────────────────────────────────────────────────
+  function toggleImport() {
+    const body = document.getElementById('import-body');
+    const tog = document.getElementById('import-toggle');
+    const open = body.classList.toggle('open');
+    tog.classList.toggle('open', open);
+  }
+
+  function importArray() {
+    const raw = document.getElementById('import-input').value.trim();
+    const status = document.getElementById('import-status');
+
+    let parsed = null;
+    try {
+      // Strip variable declaration: const x = ...; or let x = ...; or just the array
+      let expr = raw
+        .replace(/^\s*(const|let|var)\s+\w+\s*(?::\s*\w+(?:\[\])*\s*)?\s*=\s*/, '')
+        .replace(/;?\s*$/, '')
+        .trim();
+
+      // Use Function to safely evaluate the array literal
+      // We restrict to allow only array/number syntax
+      parsed = Function('"use strict"; return (' + expr + ')')();
+    } catch (e) {
+      status.textContent = 'Parse error: ' + e.message;
+      status.className = 'import-status err';
+      return;
+    }
+
+    // Validate it's a 2D array of numbers
+    if (!Array.isArray(parsed)) {
+      status.textContent = 'Error: not an array';
+      status.className = 'import-status err';
+      return;
+    }
+    if (parsed.length === 0) {
+      status.textContent = 'Error: array is empty';
+      status.className = 'import-status err';
+      return;
+    }
+
+    // Handle 1D arrays — wrap as single row
+    if (!Array.isArray(parsed[0])) {
+      parsed = [parsed];
+    }
+
+    const newRows = parsed.length;
+    const newCols = Math.max(...parsed.map(r => (Array.isArray(r) ? r.length : 0)));
+
+    if (newCols === 0) {
+      status.textContent = 'Error: rows are empty';
+      status.className = 'import-status err';
+      return;
+    }
+
+    // Normalize and validate values
+    const newData = parsed.map(row =>
+      Array.from({ length: newCols }, (_, i) => {
+        const v = Array.isArray(row) ? row[i] : undefined;
+        return (v !== undefined && typeof v === 'number' && isFinite(v)) ? v : 0;
+      })
+    );
+
+    // Collect unique values and add to palette
+    const seen = new Set(palette);
+    newData.forEach(row => row.forEach(v => {
+      if (!seen.has(v)) { palette.push(v); seen.add(v); }
+    }));
+
+    initData(newRows, newCols, newData);
+    updateMeta();
+    document.getElementById('input-rows').value = newRows;
+    document.getElementById('input-cols').value = newCols;
+    resizeCanvas();
+    drawGrid();
+    renderOutput();
+    buildPalette();
+
+    status.textContent = `✓ Loaded ${newRows}×${newCols} grid`;
+    status.className = 'import-status ok';
+  }
 
   // ── Controls ───────────────────────────────────────────────────────────────
   function applySize() {
@@ -547,7 +883,6 @@
   }
 
   // ── Output ─────────────────────────────────────────────────────────────────
-  // Debounce for large grids
   let outputTimer = null;
   function renderOutput() {
     clearTimeout(outputTimer);
@@ -601,7 +936,15 @@
     });
   }
 
-  // Enter key on size inputs
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'p' || e.key === 'P') setTool('paint');
+    if (e.key === 'l' || e.key === 'L') setTool('line');
+    if (e.key === 'r' || e.key === 'R') setTool('rect');
+    if (e.key === 'f' && currentTool === 'rect') setRectMode(rectMode === 'fill' ? 'outline' : 'fill');
+  });
+
   document.getElementById('input-rows').addEventListener('keydown', e => { if (e.key === 'Enter') applySize(); });
   document.getElementById('input-cols').addEventListener('keydown', e => { if (e.key === 'Enter') applySize(); });
 
