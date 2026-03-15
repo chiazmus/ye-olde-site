@@ -1,3 +1,8 @@
+// =============================================================================
+// canvas
+// Canvas setup, rendering context, scratch buffer, and image pixel buffer
+// =============================================================================
+
 const screen = document.getElementById('fps');
 screen.width = 500;
 screen.height = 500;
@@ -8,8 +13,18 @@ scratchCanvas.width = screen.width;
 scratchCanvas.height = screen.height;
 const scratchCtx = scratchCanvas.getContext('2d');
 
+const imageBuffer = ctx.createImageData(screen.width, screen.height);
+const pixels = imageBuffer.data;
+
 const bgColor = '#111';
 const fgColor = '#5f5';
+
+
+// =============================================================================
+// state
+// All mutable global game state — assets, sprites, entities, input, flags, tick
+// =============================================================================
+
 let myAssets;
 let zBuffer = {};
 let musicPlaying = false;
@@ -18,18 +33,31 @@ let attackState = 0;
 let animationPlaying = false;
 
 let sprites = [];
+let entities = [];
+let destroyList = [];
 
 const keys = {};
 const lastKeys = {};
 let rayCastRows = {};
 let mouseDeltaX = 0;
 
+let tick = 0;
+
+
+// =============================================================================
+// map
+// Level map data, map size, wall/sprite type registries, and map-related state
+// =============================================================================
+
 const walls = {};
 const spriteTypes = {};
+const entityTypes = {};
+const entityAnimations = {};
 let breakables = [];
+let lootables = [];
 let visibleTiles = [];
 
-let tick = 0;
+const mapSize = 40;
 
 let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -37,9 +65,9 @@ let levelMap = [
   [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 6, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 8, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 5, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 8, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 3, 0, 3, 1, 1, 1, 1, 1, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 1, 0, 1, 1, 1, 0, 6, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 4, 0, 0, 4, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 3, 0, 3, 1, 1, 7, 5, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -48,22 +76,22 @@ let levelMap = [
   [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 0, 0, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [1, 1, 1, 0, 5, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 1, 3, 0, 5, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 0, 7, 1, 7, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 3, 1, 3, 1, 1, 1, 3, 5, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 7, 1, 7, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 8, 3, 1, 3, 1, 1, 1, 3, 5, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [1, 0, 5, 1, 1, 1, 5, 0, 3, 1, 2, 2, 1, 3, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 0, 7, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 7, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [2, 0, 0, 0, 5, 0, 0, 0, 3, 1, 2, 2, 1, 3, 0, 6, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [1, 1, 6, 0, 0, 0, 6, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 3, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 5, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 8, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 8, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -71,23 +99,89 @@ let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
-const mapSize = 40;
+
+
+// =============================================================================
+// lighting
+// Light map state, light source registry, and light map initialization/spreading
+// =============================================================================
 
 let lightMap = [];
-
 let lightSource = [];
+
+function initLightMap(lightMap, lightSource, map, size) {
+    const LIGHT_RADIUS = 4;
+    const LIGHT_STRENGTH = 5;
+
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            if (lightSource.includes(map[y][x])) {
+                lightMap[y][x] = LIGHT_STRENGTH;
+
+                // Spread light in all directions
+                for (let tx = -LIGHT_RADIUS; tx <= LIGHT_RADIUS; tx++) {
+                    for (let ty = -LIGHT_RADIUS; ty <= LIGHT_RADIUS; ty++) {
+                        if (tx === 0 && ty === 0) continue;
+
+                        const nx = x + tx;
+                        const ny = y + ty;
+
+                        // Bounds check
+                        if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
+
+                        // Manhattan distance falloff — swap for Math.sqrt(tx*tx + ty*ty) if preferred
+                        const dist = Math.abs(tx) + Math.abs(ty);
+                        const lightValue = LIGHT_STRENGTH - dist;
+
+                        if (lightValue > 0) {
+                            // Keep the brightest value from any light source
+                            lightMap[ny][nx] = Math.max(lightMap[ny][nx], lightValue);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return lightMap;
+}
+
+
+// =============================================================================
+// player
+// Player object and spawn placement logic
+// =============================================================================
 
 const player = {
     x : 1.5,
     y : 1.5,
     angle : ((Math.PI / 8) * 3),
-    speed : 0.1
+    speed : 0.1,
+    shootAni : null
 };
 
-const imageBuffer = ctx.createImageData(screen.width, screen.height);
-const pixels = imageBuffer.data;
+function placePlayer(map, size) {
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            if (map[y][x] == -1) {
+                map[y][x] = 0;
+                player.x = x + 0.25;
+                player.y = y + 0.25;
+                return map;
+            }
+        }
+    }
+    return map;
+}
+
+
+// =============================================================================
+// assets
+// Image/audio loading utilities and texture data extraction
+// =============================================================================
 
 const getTextureData = (img) => {
     const tempCanvas = document.createElement('canvas');
@@ -106,25 +200,11 @@ const loadImage = (url) => {
     });
 };
 
-const clear = () => {
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0,0,screen.width,screen.height);
-};
 
-
-const drawPoint = ({x, y}) => {
-    const s = 4
-    ctx.fillStyle = fgColor;
-    ctx.fillRect(x - s/2, y - s/2, s, s);
-};
-
-const drawLine = (p1, p2, color) => {
-    ctx.strokeStyle = color || fgColor;
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-};
+// =============================================================================
+// mapgen
+// Procedural map generation algorithms and utility helpers
+// =============================================================================
 
 const generateEmptyMap = (size) => {
     let newMap = [];
@@ -260,7 +340,289 @@ const pickPlayerStart = (map, size) => {
     return null;
 };
 
-const distance = (p1, p2) => Math.sqrt(Math.pow(p1.x-p2.x, 2)+Math.pow(p1.y-p2.y, 2));
+
+// =============================================================================
+// sprites
+// Sprite/entity population, projectile spawning, and decorator helpers (lamps, pots)
+// =============================================================================
+
+const addLamps = (mapSize) => {
+    for (let x = 0; x < mapSize; x++) {
+        for (let y = 0; y < mapSize; y++) {
+            if ((x % 2) + (y % 2) === 2 && Math.random() < 0.2) {
+                sprites.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    tex: myAssets.lamp,
+                    dist: 110,
+                    aWidth: 32,
+                    dimmable: false,
+                    breakable: false,
+                    animations: 1,
+                }); 
+            }
+        }
+    }
+};
+
+const addPots = (mapSize) => {
+    for (let x = 0; x < mapSize; x++) {
+        for (let y = 0; y < mapSize; y++) {
+            if ((x % 2) + (y % 2) === 2 && Math.random() < 0.2) {
+                sprites.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    tex: myAssets.tube,
+                    dist: 110,
+                    aWidth: 32,
+                    dimmable: false,
+                    breakable: true,
+                    animations: 2,
+                }); 
+            }
+        }
+    }
+};
+
+const addEnemy = (type, x, y, damage, animations) => {
+    const myEnemy = {
+        x: x,
+        y: y,
+        tex: animations.walk,
+        dist: 110,
+        dimmable: false,
+        breakable: false,
+        lootable: false,
+        animations: Math.floor(animations.walk.width / 64),
+        idleAnimation: animations.idle,
+        walkAnimation: animations.walk,
+        hurtAnimation: animations.hurt,
+        attackAnimation: animations.attack,
+        aWidth: 64,
+        damage: damage,
+        speed: 0.04,
+        type: 'enemy',
+        etype: type,
+        hurtCountdown: 0,
+        health: 40,
+        sidePrefX: Math.random() - 0.5,
+        sidePrefY: Math.random() - 0.5
+    }
+
+    sprites.push(myEnemy);
+
+    entities.push(myEnemy);
+}
+
+const addProjectile = (x, y, angle, damage, animation) => {
+    const myProjectile = {
+        x: x,
+        y: y,
+        tex: animation,
+        dist: 110,
+        dimmable: false,
+        breakable: false,
+        lootable: false,
+        animations: Math.floor(animation.width / 32),
+        aWidth: 32,
+        angle: angle,
+        damage: damage,
+        speed: 0.2,
+        type: 'projectile',
+        toDestroy: false,
+    }
+
+    sprites.push(myProjectile);
+
+    entities.push(myProjectile);
+}
+
+function populateMap(map, size) {
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            if (map[y][x] in spriteTypes) {
+                sprites.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    tex: spriteTypes[map[y][x]],
+                    dist: 110,
+                    dimmable: false,
+                    aWidth: 32,
+                    breakable: breakables.includes(map[y][x]) || false,
+                    lootable: lootables.includes(map[y][x]) || false,
+                    animations: Math.floor(spriteTypes[map[y][x]].width / 32)
+                });
+                map[y][x] = 0;
+            } else if (map[y][x] in entityTypes) {
+                addEnemy(map[y][x], x + 0.5, y + 0.5, 5, entityAnimations[map[y][x]]);
+                map[y][x] = 0;
+            }
+        }
+    }
+    return map;
+}
+
+const updateProjectile = (entity) => {
+    const dx = Math.cos(entity.angle);
+    const dy = Math.sin(entity.angle);
+    entity.x += dx * entity.speed;
+    entity.y += dy * entity.speed;
+    if (outOfBounds(entity.x, mapSize) || outOfBounds(entity.y, mapSize) || levelMap[Math.floor(entity.y)][Math.floor(entity.x)] !== 0 || entity.toDestroy) {
+        entities.splice(entities.indexOf(entity), 1);
+        sprites.splice(sprites.indexOf(entity), 1);
+        return;
+    }
+
+    for (const ent of sprites) {
+        const simDist = Math.abs(entity.x - ent.x) + Math.abs(ent.y - entity.y)
+        if (ent.breakable && simDist <= 0.25) {
+            sprites.splice(sprites.indexOf(ent), 1);
+            entity.toDestroy = true;
+        }
+    }
+};
+
+const updateEnemy = (entity) => {
+    const hasLineOfSight = lineOfSight({x: entity.x, y: entity.y}, {x: player.x, y: player.y}, levelMap);
+
+    if (entity.hurtCountdown > 0) {
+        entity.hurtCountdown --;
+        entity.tex = entity.hurtAnimation;
+        entity.animations =  Math.floor(entity.hurtAnimation.width / 64);
+    } else if (hasLineOfSight && distance(entity, player) > 1) {
+        entity.tex = entity.walkAnimation;
+        entity.animations =  Math.floor(entity.walkAnimation.width / 64);
+        const totaldx = (player.x + entity.sidePrefX) - entity.x;
+        const totaldy = (player.y + entity.sidePrefY) - entity.y;
+        const angleToPlayer = Math.atan2(totaldy, totaldx);
+        const dx = Math.cos(angleToPlayer) * entity.speed;
+        const dy = Math.sin(angleToPlayer) * entity.speed;
+        const tdx = entity.x + dx;
+        const tdy = entity.y + dy;
+
+        if (!outOfBounds(tdx, mapSize) && !outOfBounds(tdy, mapSize) && levelMap[Math.floor(tdy)][Math.floor(tdx)] === 0) {
+            let crammed = false;
+            for (const ent of entities) {
+                if (ent.type === 'enemy' && ent !== entity) {
+                    if (manhattanDistance(ent, {x: tdx, y: tdy}) <= 0.5) {
+                        crammed = true;
+                    }
+                }
+            }
+            if (!crammed) {
+                entity.x = tdx;
+                entity.y = tdy;
+            } else {
+                entity.tex = entity.idleAnimation;
+                entity.animations = 1; 
+            }
+        } else {
+                entity.tex = entity.idleAnimation;
+                entity.animations = 1; 
+        }
+    } else if (!hasLineOfSight) {
+        entity.tex = entity.idleAnimation;
+        entity.animations = 1;
+    } else {
+        entity.tex = entity.attackAnimation;
+        entity.animations = Math.floor(entity.attackAnimation.width / 64); 
+    }
+
+    for (const ent of entities) {
+        if (ent.type === 'projectile') {
+            const simpleDist = Math.abs(Math.floor(ent.x) - Math.floor(entity.x)) + Math.abs(Math.floor(ent.y) - Math.floor(entity.y), levelMap)
+            if (simpleDist < 2) {
+                const dist = distance(entity, ent);
+                if (dist <= 0.75) {
+                    entity.health -= ent.damage;
+                    entity.hurtCountdown = 15;
+                    ent.toDestroy = true;
+                    if (entity.health <= 0) {
+                        entities.splice(entities.indexOf(entity), 1);
+                        sprites.splice(sprites.indexOf(entity), 1);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+};
+
+const updateEntity = (entity) => {
+    if (entity.type === 'projectile') {
+        updateProjectile(entity);
+    } else if (entity.type === 'enemy') {
+        updateEnemy(entity);
+    }
+}
+
+// =============================================================================
+// renderer
+// All drawing/rendering functions: raycasting, floor, sprites, skybox, CRT effect
+// =============================================================================
+
+function distance(p1, p2) {
+    return Math.sqrt(Math.pow(p1.x-p2.x, 2)+Math.pow(p1.y-p2.y, 2))
+};
+
+function manhattanDistance(p1, p2) {
+    return Math.abs(p2.x-p1.x)+Math.abs(p2.y-p1.y);
+}
+
+const toRad = (angle) => angle * Math.PI / 180;
+
+const lineOfSight = (p1, p2, map) => {
+  let x0 = Math.floor(p1.x);
+  let y0 = Math.floor(p1.y);
+  const x1 = Math.floor(p2.x);
+  const y1 = Math.floor(p2.y);
+
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+
+  while (true) {
+    // Bounds check
+    if (y0 < 0 || y0 >= map.length || x0 < 0 || x0 >= map[0].length) {
+      return false;
+    }
+
+    // Wall check — anything non-zero is a wall
+    if (map[y0][x0] !== 0) {
+      return false;
+    }
+
+    // Reached the destination
+    if (x0 === x1 && y0 === y1) {
+      return true;
+    }
+
+    const e2 = err * 2;
+    if (e2 > -dy) { err -= dy; x0 += sx; }
+    if (e2 <  dx) { err += dx; y0 += sy; }
+  }
+};
+
+const clear = () => {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,screen.width,screen.height);
+};
+
+const drawPoint = ({x, y}) => {
+    const s = 4
+    ctx.fillStyle = fgColor;
+    ctx.fillRect(x - s/2, y - s/2, s, s);
+};
+
+const drawLine = (p1, p2, color) => {
+    ctx.strokeStyle = color || fgColor;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+};
 
 const castRay = ({x, y}, angle, map) => {
     const bitsize = 32;
@@ -286,8 +648,6 @@ const castRay = ({x, y}, angle, map) => {
 
     return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side, tex: walls[map[Math.floor(tempY)][Math.floor(tempX)]] || walls[1]};
 };
-
-const toRad = (angle) => angle * Math.PI / 180;
 
 const drawRayCast = ({x, y}, angle, map) => {
     const rays = screen.width/2;
@@ -423,7 +783,7 @@ const drawSprite = (sprite) => {
     for (let x = 0; x < spriteSize; x++) {
         let columnX = Math.floor(screenX - (spriteSize/2) + x);
         if (distanceToSprite < zBuffer[columnX] && distanceToSprite < 15 && !outOfBounds(columnX, screen.width)) {
-            ctx.drawImage(spriteTex, Math.floor(x/spriteSize * 32) + (texNum*32), 0, 1, 32, columnX, drawStart, 2, spriteSize);
+            ctx.drawImage(spriteTex, Math.floor(x/spriteSize * sprite.aWidth) + (texNum*sprite.aWidth), 0, 1, sprite.aWidth, columnX, drawStart, 2, spriteSize);
             if (sprite.animations > 0) {
                 animationPlaying = true;
             }
@@ -448,42 +808,6 @@ const drawSprites = () => {
     sprites.forEach((sprite) => {
         drawSprite(sprite);
     });
-};
-
-const addLamps = (mapSize) => {
-    for (let x = 0; x < mapSize; x++) {
-        for (let y = 0; y < mapSize; y++) {
-            if ((x % 2) + (y % 2) === 2 && Math.random() < 0.2) {
-                sprites.push({
-                    x: x + 0.5,
-                    y: y + 0.5,
-                    tex: myAssets.lamp,
-                    dist: 110,
-                    dimmable: false,
-                    breakable: false,
-                    animations: 1,
-                }); 
-            }
-        }
-    }
-};
-
-const addPots = (mapSize) => {
-    for (let x = 0; x < mapSize; x++) {
-        for (let y = 0; y < mapSize; y++) {
-            if ((x % 2) + (y % 2) === 2 && Math.random() < 0.2) {
-                sprites.push({
-                    x: x + 0.5,
-                    y: y + 0.5,
-                    tex: myAssets.tube,
-                    dist: 110,
-                    dimmable: false,
-                    breakable: true,
-                    animations: 2,
-                }); 
-            }
-        }
-    }
 };
 
 const drawCRT = () => {
@@ -523,76 +847,11 @@ const drawSkybox = (img) => {
     ctx.drawImage(img, x + skyboxWidth,    screen.height/2 - (skyboxWidth / 8), skyboxWidth, skyboxWidth / 4);
 };
 
-function populateMap(map, size) {
-    for (let x = 0; x < size; x++) {
-        for (let y = 0; y < size; y++) {
-            if (map[y][x] in spriteTypes) {
-                sprites.push({
-                    x: x + 0.5,
-                    y: y + 0.5,
-                    tex: spriteTypes[map[y][x]],
-                    dist: 110,
-                    dimmable: false,
-                    breakable: breakables.includes(map[y][x]) || false,
-                    animations: Math.floor(spriteTypes[map[y][x]].width / 32)
-                });
-                map[y][x] = 0;
-            }
-        }
-    }
-    return map;
-}
 
-function initLightMap(lightMap, lightSource, map, size) {
-    const LIGHT_RADIUS = 4;
-    const LIGHT_STRENGTH = 5;
-
-    for (let x = 0; x < size; x++) {
-        for (let y = 0; y < size; y++) {
-            if (lightSource.includes(map[y][x])) {
-                lightMap[y][x] = LIGHT_STRENGTH;
-
-                // Spread light in all directions
-                for (let tx = -LIGHT_RADIUS; tx <= LIGHT_RADIUS; tx++) {
-                    for (let ty = -LIGHT_RADIUS; ty <= LIGHT_RADIUS; ty++) {
-                        if (tx === 0 && ty === 0) continue;
-
-                        const nx = x + tx;
-                        const ny = y + ty;
-
-                        // Bounds check
-                        if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
-
-                        // Manhattan distance falloff — swap for Math.sqrt(tx*tx + ty*ty) if preferred
-                        const dist = Math.abs(tx) + Math.abs(ty);
-                        const lightValue = LIGHT_STRENGTH - dist;
-
-                        if (lightValue > 0) {
-                            // Keep the brightest value from any light source
-                            lightMap[ny][nx] = Math.max(lightMap[ny][nx], lightValue);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return lightMap;
-}
-
-function placePlayer(map, size) {
-    for (let x = 0; x < size; x++) {
-        for (let y = 0; y < size; y++) {
-            if (map[y][x] == -1) {
-                map[y][x] = 0;
-                player.x = x + 0.25;
-                player.y = y + 0.25;
-                return map;
-            }
-        }
-    }
-    return map;
-}
+// =============================================================================
+// main
+// Top-level game orchestration: displayScreen, init, and the update game loop
+// =============================================================================
 
 function displayScreen() {
     clear();
@@ -604,8 +863,8 @@ function displayScreen() {
     if (attackState > 0) {
         animationPlaying = true;
         attackState--;
-        const spriteNum = 5-Math.floor(attackState/3);
-        ctx.drawImage(myAssets.arm, spriteNum * 32, 0, 32, 32, screen.width - (256+64), screen.height - 256, 256, 256);
+        const spriteNum = (player.shootAni.width / 32)-Math.floor(attackState/5);
+        ctx.drawImage(player.shootAni, spriteNum * 32, 0, 32, 32, screen.width - (256+64), screen.height - 256, 256, 256);
     }
     drawCRT();
 }
@@ -613,21 +872,26 @@ function displayScreen() {
 async function init() {
 
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable] = await Promise.all([
+    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
         loadImage('./assets/barrel.png'),
         loadImage('./assets/lamp.png'),
         loadImage('./assets/pot.png'),
-        loadImage('./assets/arm.png'),
+        loadImage('./assets/witchBolt.png'),
         loadImage('./assets/mountain-skybox.png'),
         loadImage('./assets/tube.png'),
         loadImage('./assets/bannerWall.png'),
         loadImage('./assets/potionTable.png'),
+        loadImage('./assets/eldritchBlast.png'),
+        loadImage('./assets/guardWalk.png'),
+        loadImage('./assets/guard.png'),
+        loadImage('./assets/guardHurt.png'),
+        loadImage('./assets/guardAttack.png'),
     ]);
 
-    myAssets = { wall, tileWall, barrel, lamp, pot, arm, breakSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
-        skybox, tube, bannerWall, potionTable };
+    myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
+        skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack };
 
     myAssets.stormTheKeep.loop = true;
 
@@ -638,7 +902,10 @@ async function init() {
     spriteTypes['5'] = lamp;
     spriteTypes['6'] = potionTable;
     spriteTypes['7'] = pot;
+    entityTypes['8'] = guardWalk;
+    entityAnimations['8'] = {idle: guardIdle, walk: guardWalk, hurt: guardHurt, attack: guardAttack};
     breakables.push(7);
+    lootables.push(6);
     lightSource = [2, 5];
 
     lightMap = generateEmptyMap(mapSize);
@@ -658,6 +925,7 @@ async function init() {
     // player.y = 1.25;
 
     player.angle = toRad(45);
+    player.shootAni = arm;
     displayScreen();
 
     window.addEventListener('keydown', (e) => {
@@ -675,19 +943,15 @@ async function init() {
         else if (attackState <= 0) {
             attackState = (3*6);
             animationPlaying = true;
-            for (let i = 0; i < sprites.length; i++) {
-                if (sprites[i].dist <= 1 && sprites[i].breakable) {
-                    sprites.splice(i, 1);
-                    myAssets.breakSound.play();
-                    break;
-                }
-            }        
+            const px = player.x + Math.cos(player.angle) * 0.2;
+            const py = player.y + Math.sin(player.angle) * 0.2;
+            addProjectile(px, py, player.angle, 10, eldritchBlast);
+            myAssets.shootSound.play();
         }
     });
     window.addEventListener('mousemove', (e) => {
         if (document.pointerLockElement === screen) {
             mouseDeltaX += e.movementX; 
-            
         }
     });
     update();
@@ -706,6 +970,10 @@ function update() {
     //     player.angle += (Math.PI / 90);
     //     changed = true;
     // }
+    let tempEntities = [...entities];
+    tempEntities.forEach((entity) => {
+        updateEntity(entity);
+    });
 
     if (mouseDeltaX !== 0) {
         const mouseSensitivity = 0.001;
@@ -715,16 +983,7 @@ function update() {
     }
 
     if ((lastKeys['KeyE'] && (!keys['KeyE'])) && (document.pointerLockElement === screen)) {
-        lastKeys['KeyE'] = keys['KeyE'];
-        attackState = (3*6);
-        animationPlaying = true;
-        for (let i = 0; i < sprites.length; i++) {
-            if (sprites[i].dist <= 1 && sprites[i].breakable) {
-                sprites.splice(i, 1);
-                myAssets.breakSound.play();
-                break;
-            }
-        }
+        // interact
     }
 
     if (keys['ArrowUp'] || keys['KeyW'] && (document.pointerLockElement === screen)) {
