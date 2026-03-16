@@ -26,7 +26,7 @@ const fgColor = '#5f5';
 // =============================================================================
 
 let myAssets;
-let zBuffer = {};
+let zBuffer = new Float32Array(500);
 let musicPlaying = false;
 
 let attackState = 0;
@@ -56,6 +56,9 @@ const entityAnimations = {};
 let breakables = [];
 let lootables = [];
 let visibleTiles = [];
+let floorTexture;
+const floorTextureWidth = 32;
+const floorTextureHeight = 32;
 
 const mapSize = 40;
 
@@ -624,7 +627,76 @@ const drawLine = (p1, p2, color) => {
     ctx.stroke();
 };
 
-const castRay = ({x, y}, angle, map) => {
+function ddaRayCast({x, y}, angle, map) {
+    const rayDirX = Math.cos(angle);
+    const rayDirY = Math.sin(angle);
+
+    // These are the distance between horizontal/vertical lines for 1 unit of travel based on the angle
+    // Ex. if you are moving y by 1, you move x by deltaDistX and vice versa
+    const deltaDistX = Math.abs(1/rayDirX);
+    const deltaDistY = Math.abs(1/rayDirY);
+
+    let mapX = Math.floor(x);
+    let mapY = Math.floor(y);
+
+    let sideDistX, sideDistY;
+    let stepX, stepY;
+
+    // This finds the first x and y gridlines that I step to.  After that it should be simple
+
+    if (rayDirX < 0) {
+        stepX = -1;
+        sideDistX = (x - mapX) * deltaDistX;
+    } else {
+        stepX = 1;
+        sideDistX = (mapX + 1.0 - x) * deltaDistX;
+    }
+
+    if (rayDirY < 0) {
+        stepY = -1;
+        sideDistY = (y - mapY) * deltaDistY;
+    } else {
+        stepY = 1;
+        sideDistY = (mapY + 1.0 - y) * deltaDistY;
+    }
+
+    // Now this is the actual raycasting loop
+
+    let hit = false;
+    let side; // 0 = X wall hit, 1 = Y wall hit
+
+    while (!hit) {
+        if (sideDistX < sideDistY) {
+            // This means I need to make a horizontal step next
+            sideDistX += deltaDistX;
+            mapX += stepX;
+            side = 1;
+        } else {
+            // And this is a vertical step next.
+            sideDistY += deltaDistY;
+            mapY += stepY;
+            side = 0;
+        }
+
+        if (map[mapY][mapX] > 0) hit = true;
+
+    }
+
+    let hitX, hitY;
+    if (side === 1) {
+        const t = (mapX - x + (1 - stepX) / 2) / rayDirX;
+        hitX = mapX + (1 - stepX) / 2;
+        hitY = y + t * rayDirY;
+    } else {
+        const t = (mapY - y + (1 - stepY) / 2) / rayDirY;
+        hitY = mapY + (1 - stepY) / 2;
+        hitX = x + t * rayDirX;
+    }
+
+    return {dist: distance({x: x, y: y}, {x: hitX, y: hitY}), hitX, hitY, side: side, tex: walls[map[Math.floor(hitY)][Math.floor(hitX)]] || walls[1]};
+}
+
+const naiveRayCast = ({x, y}, angle, map) => {
     const bitsize = 32;
     const dx = Math.cos(angle) / bitsize;
     const dy = Math.sin(angle) / bitsize;
@@ -657,7 +729,7 @@ const drawRayCast = ({x, y}, angle, map) => {
 
     for (let i = 0; i < rays; i++) {
         const currentRay = toRad(i * rayAngle) + (angle - toRad(maxAngle/2));
-        const result = castRay({x: x, y: y}, currentRay, map)
+        const result = ddaRayCast({x: x, y: y}, currentRay, map);
         const dist = result.dist || 0.0001;
         const side = result.side;
 
@@ -706,36 +778,40 @@ const drawTexturedFloor = () => {
     const rayAngle = toRad(45 / (screen.width / 2));
     const halfFov = toRad(45 / 2);
 
-    for (let y = 0; y < screen.height; y++) {
+    for (let x = 0; x < screen.width; x++) {
+        const angleToLocation = rayAngle * Math.floor(x / 2) + (player.angle - halfFov);
+        const cosA = Math.cos(angleToLocation);
+        const sinA = Math.sin(angleToLocation);
+        const col = rayCastRows[x - (x % 2)];
 
+        for (let y = 0; y < screen.height; y++) {
+            let distanceToLocation = Math.abs(y - halfHeight) * 2;
+            if (distanceToLocation === 0) continue;
+            distanceToLocation = screen.height / distanceToLocation;
 
-        let distanceToLocation = Math.abs(y - halfHeight) * 2;
-        if (distanceToLocation === 0) continue;
-        distanceToLocation = screen.height / distanceToLocation;
-
-        for (let x = 0; x < screen.width; x++) {
-            const col = rayCastRows[x - (x % 2)];
             if (y >= col.drawEnd - 1 || y <= col.drawStart + 1) {
 
-                const angleToLocation = rayAngle * Math.floor(x / 2) + (player.angle - halfFov);
-
-                const worldX = player.x + Math.cos(angleToLocation) * distanceToLocation;
-                const worldY = player.y + Math.sin(angleToLocation) * distanceToLocation;
+                const worldX = player.x + cosA * distanceToLocation;
+                const worldY = player.y + sinA * distanceToLocation;
                 const mapH = lightMap.length;
                 const mapW = lightMap[0].length;
 
                 const tileY = Math.floor(worldY);
                 const tileX = Math.floor(worldX);
+                const texY = Math.floor((worldY-tileY) * floorTextureHeight);
+                const texX = Math.floor((worldX-tileX) * floorTextureWidth);
+
 
                 if (tileY < 0 || tileY >= mapH || tileX < 0 || tileX >= mapW) continue;
 
                 const lightLevel = lightMap[tileY][tileX];
-                const intensity = 50 * ((lightLevel + 2) / 6);
+                const intensity = ((lightLevel + 2) / 12);
 
                 const screenIndex = (y * screen.width + x) * 4;
-                pixels[screenIndex]     = intensity;
-                pixels[screenIndex + 1] = intensity;
-                pixels[screenIndex + 2] = intensity;
+                const texIndex = (texY * floorTextureWidth + texX) * 4;
+                pixels[screenIndex]     = floorTexture[texIndex] * intensity;
+                pixels[screenIndex + 1] = floorTexture[texIndex+1] * intensity;
+                pixels[screenIndex + 2] = floorTexture[texIndex+2] * intensity;
                 pixels[screenIndex + 3] = 255;
             }
         }
@@ -872,7 +948,9 @@ function displayScreen() {
 async function init() {
 
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack] = await Promise.all([
+    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack,
+        tileFloor
+    ] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
         loadImage('./assets/barrel.png'),
@@ -888,12 +966,15 @@ async function init() {
         loadImage('./assets/guard.png'),
         loadImage('./assets/guardHurt.png'),
         loadImage('./assets/guardAttack.png'),
+        loadImage('./assets/tileFloor.png'),
     ]);
 
     myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
-        skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack };
+        skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor };
 
     myAssets.stormTheKeep.loop = true;
+
+    floorTexture = getTextureData(tileFloor);
 
     walls['1'] = wall;
     walls['2'] = tileWall;
