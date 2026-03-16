@@ -678,7 +678,7 @@ function ddaRayCast({x, y}, angle, map) {
             side = 0;
         }
 
-        if (map[mapY][mapX] > 0) hit = true;
+        if (map[mapY][mapX] !== 0) hit = true;
 
     }
 
@@ -693,7 +693,7 @@ function ddaRayCast({x, y}, angle, map) {
         hitX = x + t * rayDirX;
     }
 
-    return {dist: distance({x: x, y: y}, {x: hitX, y: hitY}), hitX, hitY, side: side, tex: walls[map[Math.floor(hitY)][Math.floor(hitX)]] || walls[1]};
+    return {dist: distance({x: x, y: y}, {x: hitX, y: hitY}), hitX, hitY, side: side, tex: walls[map[mapY][mapX]] || walls[1]};
 }
 
 const naiveRayCast = ({x, y}, angle, map) => {
