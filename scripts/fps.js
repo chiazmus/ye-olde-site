@@ -62,6 +62,8 @@ const floorTextureHeight = 32;
 
 const mapSize = 40;
 
+let viewedMap = new Int8Array(mapSize * mapSize);
+
 let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -408,8 +410,9 @@ const addEnemy = (type, x, y, damage, animations) => {
         etype: type,
         hurtCountdown: 0,
         health: 40,
-        sidePrefX: Math.random() - 0.5,
-        sidePrefY: Math.random() - 0.5
+        sidePrefX: Math.random()*0.5 - 0.25,
+        sidePrefY: Math.random()*0.5 - 0.25,
+        target: null,
     }
 
     sprites.push(myEnemy);
@@ -487,16 +490,18 @@ const updateProjectile = (entity) => {
 
 const updateEnemy = (entity) => {
     const hasLineOfSight = lineOfSight({x: entity.x, y: entity.y}, {x: player.x, y: player.y}, levelMap);
-
+    if (hasLineOfSight) {
+        entity.target = {x: Math.floor(player.x)+0.5, y: Math.floor(player.y)+0.5};
+    }
     if (entity.hurtCountdown > 0) {
         entity.hurtCountdown --;
         entity.tex = entity.hurtAnimation;
         entity.animations =  Math.floor(entity.hurtAnimation.width / 64);
-    } else if (hasLineOfSight && distance(entity, player) > 1) {
+    } else if (entity.target !== null && distance(entity, entity.target) > 1) {
         entity.tex = entity.walkAnimation;
         entity.animations =  Math.floor(entity.walkAnimation.width / 64);
-        const totaldx = (player.x + entity.sidePrefX) - entity.x;
-        const totaldy = (player.y + entity.sidePrefY) - entity.y;
+        const totaldx = (entity.target.x + entity.sidePrefX) - entity.x;
+        const totaldy = (entity.target.y + entity.sidePrefY) - entity.y;
         const angleToPlayer = Math.atan2(totaldy, totaldx);
         const dx = Math.cos(angleToPlayer) * entity.speed;
         const dy = Math.sin(angleToPlayer) * entity.speed;
@@ -524,6 +529,7 @@ const updateEnemy = (entity) => {
                 entity.animations = 1; 
         }
     } else if (!hasLineOfSight) {
+        entity.target = null;
         entity.tex = entity.idleAnimation;
         entity.animations = 1;
     } else {
@@ -666,6 +672,7 @@ function ddaRayCast({x, y}, angle, map) {
     let side; // 0 = X wall hit, 1 = Y wall hit
 
     while (!hit) {
+
         if (sideDistX < sideDistY) {
             // This means I need to make a horizontal step next
             sideDistX += deltaDistX;
@@ -680,6 +687,9 @@ function ddaRayCast({x, y}, angle, map) {
 
         if (map[mapY][mapX] !== 0) hit = true;
 
+        const mapIndex = (mapY * mapSize + mapX);
+        viewedMap[mapIndex] = 1;
+        
     }
 
     let hitX, hitY;
@@ -785,12 +795,39 @@ const drawTexturedFloor = () => {
         const col = rayCastRows[x - (x % 2)];
 
         for (let y = 0; y < screen.height; y++) {
+            const screenIndex = (y * screen.width + x) * 4;
             let distanceToLocation = Math.abs(y - halfHeight) * 2;
             if (distanceToLocation === 0) continue;
             distanceToLocation = screen.height / distanceToLocation;
+            let mapDraw = false;
 
-            if (y >= col.drawEnd - 1 || y <= col.drawStart + 1) {
+            if ((y >= screen.height - 80) && (x >= screen.width - 80)) {
+                mapDraw = true;
+                let tx = Math.floor((80 - (screen.width-x)) / 2);
+                let ty = Math.floor((80 - (screen.height-y)) / 2);
+                
+                const mapIndex = (ty * mapSize + tx);
+                let color;
 
+                if (viewedMap[mapIndex] > 0) {
+                    color = levelMap[ty][tx] === 0 ? 0 : 255;
+                } else {
+                    color = 0;
+                }
+                if (Math.floor(player.x) !== tx || Math.floor(player.y) !== ty) {
+                    pixels[screenIndex]     = color;
+                    pixels[screenIndex + 1] = color;
+                    pixels[screenIndex + 2] = color;
+                    pixels[screenIndex + 3] = 100;
+                } else {
+                    pixels[screenIndex]     = 255;
+                    pixels[screenIndex + 1] = 100;
+                    pixels[screenIndex + 2] = 100;
+                    pixels[screenIndex + 3] = 255;                        
+                }
+            }
+
+            if ((y >= col.drawEnd - 1 || y <= col.drawStart + 1) && !mapDraw) {
                 const worldX = player.x + cosA * distanceToLocation;
                 const worldY = player.y + sinA * distanceToLocation;
                 const mapH = lightMap.length;
@@ -807,7 +844,6 @@ const drawTexturedFloor = () => {
                 const lightLevel = lightMap[tileY][tileX];
                 const intensity = ((lightLevel + 2) / 12);
 
-                const screenIndex = (y * screen.width + x) * 4;
                 const texIndex = (texY * floorTextureWidth + texX) * 4;
                 pixels[screenIndex]     = floorTexture[texIndex] * intensity;
                 pixels[screenIndex + 1] = floorTexture[texIndex+1] * intensity;
@@ -824,20 +860,20 @@ const drawTexturedFloor = () => {
 const drawSprite = (sprite) => {
     const maxAngle = 45
     function getSpriteScreenX(sprite) {
-        // 1. Get absolute angle from player to sprite
+        // Get absolute angle from player to sprite
         const dx = sprite.x - player.x;
         const dy = sprite.y - player.y;
         const spriteAngle = Math.atan2(dy, dx);
 
-        // 2. Get relative angle and NORMALIZE it to [-PI, PI]
+        // Get relative angle and NORMALIZE it to [-PI, PI]
         // This prevents the sprite from "glitching" when crossing the 0/360 boundary
         let beta = spriteAngle - player.angle;
         beta = Math.atan2(Math.sin(beta), Math.cos(beta));
 
-        // 3. Convert to degrees to match your raycasting logic
+        // Convert to degrees to match your raycasting logic
         const betaDeg = beta * (180 / Math.PI);
 
-        // 4. Map degrees to screen coordinates
+        //Map degrees to screen coordinates
         // Middle of screen is 0 degrees. Left is -22.5, Right is 22.5.
         const screenX = (betaDeg + maxAngle / 2) * (screen.width / maxAngle);
 
@@ -910,7 +946,7 @@ const drawCRT = () => {
 
 const drawSkybox = (img) => {
     // skyboxWidth represents the full 360° panorama width
-    const skyboxWidth = screen.width * (360 / 45); // e.g. screen.width * 6 for 60° FOV
+    const skyboxWidth = screen.width * (360 / 45); // e.g. screen.width * 6 for 60deg FOV
 
     let rotation = player.angle % (Math.PI * 2);
     if (rotation < 0) rotation += Math.PI * 2;
@@ -946,7 +982,7 @@ function displayScreen() {
 }
 
 async function init() {
-
+    
     ctx.imageSmoothingEnabled = false;
     const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack,
         tileFloor
@@ -988,6 +1024,8 @@ async function init() {
     breakables.push(7);
     lootables.push(6);
     lightSource = [2, 5];
+
+    for (let i = 0; i < mapSize * mapSize; i++) viewedMap[i] = 0;
 
     lightMap = generateEmptyMap(mapSize);
 
