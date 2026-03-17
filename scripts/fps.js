@@ -72,7 +72,7 @@ let levelMap = [
   [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 6, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 8, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 5, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 8, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 9, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 3, 0, 3, 1, 1, 1, 1, 1, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 1, 0, 1, 1, 1, 0, 6, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 4, 0, 0, 4, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 3, 0, 3, 1, 1, 7, 5, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -91,12 +91,12 @@ let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 5, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 9, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 8, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 8, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 9, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -415,6 +415,11 @@ const addEnemy = (type, x, y, damage, animations) => {
         target: null,
     }
 
+    if (myEnemy.etype == 9) {
+        myEnemy.speed = 0.03;
+        myEnemy.health = 20;
+    }
+
     sprites.push(myEnemy);
 
     entities.push(myEnemy);
@@ -473,6 +478,7 @@ const updateProjectile = (entity) => {
     const dy = Math.sin(entity.angle);
     entity.x += dx * entity.speed;
     entity.y += dy * entity.speed;
+    
     if (outOfBounds(entity.x, mapSize) || outOfBounds(entity.y, mapSize) || levelMap[Math.floor(entity.y)][Math.floor(entity.x)] !== 0 || entity.toDestroy) {
         entities.splice(entities.indexOf(entity), 1);
         sprites.splice(sprites.indexOf(entity), 1);
@@ -486,55 +492,113 @@ const updateProjectile = (entity) => {
             entity.toDestroy = true;
         }
     }
+
+    if (manhattanDistance(player, entity) <= 0.25) {
+        entity.toDestroy = true;
+    }
 };
 
 const updateEnemy = (entity) => {
     const hasLineOfSight = lineOfSight({x: entity.x, y: entity.y}, {x: player.x, y: player.y}, levelMap);
+    const targDist = entity.etype == 8 ? 1 : 4;
+    let distanceToTarget;
     if (hasLineOfSight) {
-        entity.target = {x: Math.floor(player.x)+0.5, y: Math.floor(player.y)+0.5};
+        entity.target = {x: player.x, y: player.y};
     }
+    if (entity.target !== null) distanceToTarget = distance(entity.target, entity);
     if (entity.hurtCountdown > 0) {
         entity.hurtCountdown --;
         entity.tex = entity.hurtAnimation;
         entity.animations =  Math.floor(entity.hurtAnimation.width / 64);
-    } else if (entity.target !== null && distance(entity, entity.target) > 1) {
+    } else if ( entity.target !== null ) {
         entity.tex = entity.walkAnimation;
         entity.animations =  Math.floor(entity.walkAnimation.width / 64);
-        const totaldx = (entity.target.x + entity.sidePrefX) - entity.x;
-        const totaldy = (entity.target.y + entity.sidePrefY) - entity.y;
-        const angleToPlayer = Math.atan2(totaldy, totaldx);
-        const dx = Math.cos(angleToPlayer) * entity.speed;
-        const dy = Math.sin(angleToPlayer) * entity.speed;
-        const tdx = entity.x + dx;
-        const tdy = entity.y + dy;
+        const totaldx = (entity.target.x) - entity.x;
+        const totaldy = (entity.target.y) - entity.y;
+        let angleToPlayer = Math.atan2(totaldy, totaldx);
+        const playerVector = {x: Math.cos(angleToPlayer), y: Math.sin(angleToPlayer)}
+        const playerRepulseVector = {x: playerVector.x * ((targDist) / distanceToTarget), y: playerVector.y * (targDist / distanceToTarget)}
+        const arrivalMargin = 0.3;
+        let companionDistancing = [];
 
-        if (!outOfBounds(tdx, mapSize) && !outOfBounds(tdy, mapSize) && levelMap[Math.floor(tdy)][Math.floor(tdx)] === 0) {
-            let crammed = false;
-            for (const ent of entities) {
-                if (ent.type === 'enemy' && ent !== entity) {
-                    if (manhattanDistance(ent, {x: tdx, y: tdy}) <= 0.5) {
-                        crammed = true;
-                    }
+        for (const ent of entities) {
+            if (ent !== entity && ent.type === 'enemy') {
+                const entDist = manhattanDistance(ent, entity);
+                if (entDist < 7) {
+                    const repulsionAngle = Math.atan2((ent.y - entity.y), (ent.x - entity.x));
+                    const repulsionVector = {x: Math.cos(repulsionAngle) * (0.2 / entDist), y: Math.sin(repulsionAngle) * (0.2 / entDist)}
+                    companionDistancing.push(repulsionVector);
                 }
-            }
-            if (!crammed) {
-                entity.x = tdx;
-                entity.y = tdy;
-            } else {
-                entity.tex = entity.idleAnimation;
-                entity.animations = 1; 
-            }
-        } else {
-                entity.tex = entity.idleAnimation;
-                entity.animations = 1; 
+            } 
         }
-    } else if (!hasLineOfSight) {
+        let finalVector = {x: 0, y: 0};
+
+        for (const vec of companionDistancing) {
+            finalVector.x -= vec.x
+            finalVector.y -= vec.y
+        }
+
+        let discount = 0;
+
+        if (distanceToTarget > targDist + arrivalMargin || distanceToTarget < targDist - arrivalMargin) {
+            finalVector.x -= playerRepulseVector.x * 3
+            finalVector.y -= playerRepulseVector.y * 3
+
+            finalVector.x += playerVector.x * 3
+            finalVector.y += playerVector.y * 3
+            discount = 6;
+        }
+
+        finalVector.x /= (discount + companionDistancing.length);
+        finalVector.y /= (discount + companionDistancing.length);
+
+        let tdx = entity.x;
+        let tdy = entity.y;
+
+        const finalAngle = Math.atan2(finalVector.y, finalVector.x)
+        if (finalAngle) {
+            const dx = Math.cos(finalAngle) * entity.speed;
+            const dy = Math.sin(finalAngle) * entity.speed;
+            tdx = entity.x + dx;
+            tdy = entity.y + dy;
+        }
+
+        const isColliding = (x, y) => {
+            return levelMap[Math.floor(y + 0.4)][Math.floor(x + 0.4)] + levelMap[Math.floor(y - 0.4)][Math.floor(x + 0.4)]
+            + levelMap[Math.floor(y + 0.4)][Math.floor(x - 0.4)] + levelMap[Math.floor(y - 0.4)][Math.floor(x - 0.4)] > 0;
+        };
+
+        const canMoveX = !outOfBounds(tdx, mapSize) && !isColliding(tdx, entity.y);
+        const canMoveY = !outOfBounds(tdy, mapSize) && !isColliding(entity.x, tdy);
+
+        if (canMoveX && !canMoveY) entity.x = tdx;
+        if (canMoveY && !canMoveX) entity.y = tdy;
+        if (canMoveX && canMoveY && !isColliding(tdx, tdy)) {
+            entity.x = tdx;
+            entity.y = tdy;
+        }
+
+        const isMoving = canMoveX || canMoveY;
+        entity.tex = isMoving ? entity.walkAnimation : entity.idleAnimation;
+        entity.animations = isMoving ? Math.floor(entity.walkAnimation.width / 64) : 1;
+    } 
+    
+    if (!hasLineOfSight && distanceToTarget <= targDist+0.3) {
         entity.target = null;
         entity.tex = entity.idleAnimation;
         entity.animations = 1;
-    } else {
+    } else if (distanceToTarget <= targDist+0.3 && entity.hurtCountdown <= 0) {
         entity.tex = entity.attackAnimation;
         entity.animations = Math.floor(entity.attackAnimation.width / 64); 
+
+        if (entity.etype == 9 && (tick % 60 == 0)  && Math.random() > 0.05) {
+            const totaldx = (entity.target.x ) - entity.x;
+            const totaldy = (entity.target.y ) - entity.y;
+            const angleToPlayer = Math.atan2(totaldy, totaldx); 
+            const dx = Math.cos(angleToPlayer) * 0.5;
+            const dy = Math.sin(angleToPlayer) * 0.5;
+            addProjectile(entity.x + dx, entity.y + dy, angleToPlayer, 2, myAssets.blueEnergy);
+        }
     }
 
     for (const ent of entities) {
@@ -542,7 +606,7 @@ const updateEnemy = (entity) => {
             const simpleDist = Math.abs(Math.floor(ent.x) - Math.floor(entity.x)) + Math.abs(Math.floor(ent.y) - Math.floor(entity.y), levelMap)
             if (simpleDist < 2) {
                 const dist = distance(entity, ent);
-                if (dist <= 0.75) {
+                if (dist < 0.25) {
                     entity.health -= ent.damage;
                     entity.hurtCountdown = 15;
                     ent.toDestroy = true;
@@ -985,7 +1049,7 @@ async function init() {
     
     ctx.imageSmoothingEnabled = false;
     const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack,
-        tileFloor
+        tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack, blueEnergy
     ] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
@@ -1003,10 +1067,16 @@ async function init() {
         loadImage('./assets/guardHurt.png'),
         loadImage('./assets/guardAttack.png'),
         loadImage('./assets/tileFloor.png'),
+        loadImage('./assets/wizardWalk.png'),
+        loadImage('./assets/wizardIdle.png'),
+        loadImage('./assets/wizardHurt.png'),
+        loadImage('./assets/wizardAttack.png'),
+        loadImage('./assets/blueEnergy.png'),
     ]);
 
     myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
-        skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor };
+        skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack,
+    blueEnergy };
 
     myAssets.stormTheKeep.loop = true;
 
@@ -1020,7 +1090,9 @@ async function init() {
     spriteTypes['6'] = potionTable;
     spriteTypes['7'] = pot;
     entityTypes['8'] = guardWalk;
-    entityAnimations['8'] = {idle: guardIdle, walk: guardWalk, hurt: guardHurt, attack: guardAttack};
+    entityTypes['9'] = wizardWalk;
+    entityAnimations[8] = {idle: guardIdle, walk: guardWalk, hurt: guardHurt, attack: guardAttack};
+    entityAnimations[9] = {idle: wizardIdle, walk: wizardWalk, hurt: wizardHurt, attack: wizardAttack};
     breakables.push(7);
     lootables.push(6);
     lightSource = [2, 5];
