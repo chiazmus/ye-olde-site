@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SECTOR FORGE — Level Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --panel: #0f1318;
+    --border: #1e2a38;
+    --accent: #00e5ff;
+    --accent2: #ff4444;
+    --accent3: #aaff44;
+    --text: #c8d8e8;
+    --dim: #4a6070;
+    --grid: #141c26;
+    --grid-major: #1a2535;
+    --sector-fill: rgba(0, 229, 255, 0.06);
+    --sector-stroke: #00e5ff;
+    --selected-fill: rgba(170, 255, 68, 0.10);
+    --selected-stroke: #aaff44;
+    --portal-color: #ff9922;
+    --point-color: #00e5ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,229,255,0.5);
+  }
+
+  .header-sep { color: var(--border); }
+
+  .status-bar {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--dim);
+    display: flex;
+    gap: 20px;
+  }
+  .status-bar span { color: var(--accent); }
+
+  .workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* LEFT TOOLBAR */
+  .toolbar {
+    width: 52px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .tool-btn {
+    width: 38px;
+    height: 38px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+  }
+  .tool-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.05); }
+  .tool-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.12); box-shadow: 0 0 10px rgba(0,229,255,0.2) inset; }
+  .tool-btn.danger { color: var(--dim); }
+  .tool-btn.danger:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(255,68,68,0.07); }
+
+  .tool-sep { width: 30px; height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* CANVAS AREA */
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  canvas#editor {
+    display: block;
+    cursor: crosshair;
+  }
+
+  .canvas-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-size: 10px;
+    color: var(--dim);
+    pointer-events: none;
+    line-height: 1.8;
+  }
+
+  /* RIGHT PANEL */
+  .side-panel {
+    width: 220px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .sector-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+  }
+
+  .sector-list::-webkit-scrollbar { width: 4px; }
+  .sector-list::-webkit-scrollbar-track { background: var(--bg); }
+  .sector-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .sector-item {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sector-item:hover { border-color: var(--accent); color: var(--accent); }
+  .sector-item.selected { border-color: var(--selected-stroke); color: var(--selected-stroke); background: rgba(170,255,68,0.06); }
+
+  .sector-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+  .field-row label { color: var(--dim); width: 80px; flex-shrink: 0; font-size: 10px; }
+
+  .field-row input[type="number"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 3px 6px;
+    outline: none;
+    width: 100%;
+  }
+  .field-row input[type="number"]:focus { border-color: var(--accent); }
+
+  .field-row input[type="color"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    height: 22px;
+    cursor: pointer;
+    padding: 1px;
+  }
+
+  .field-row input[type="text"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 3px 6px;
+    outline: none;
+    width: 100%;
+  }
+  .field-row input[type="text"]:focus { border-color: var(--accent); }
+
+  .btn {
+    width: 100%;
+    padding: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--dim);
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    margin-bottom: 4px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.05); }
+  .btn.accent { border-color: var(--accent); color: var(--accent); }
+  .btn.accent:hover { background: rgba(0,229,255,0.12); }
+  .btn.danger:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(255,68,68,0.07); }
+  .btn.success { border-color: var(--accent3); color: var(--accent3); }
+  .btn.success:hover { background: rgba(170,255,68,0.1); }
+
+  .no-selection {
+    color: var(--dim);
+    font-size: 10px;
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  /* BOTTOM BAR */
+  .bottom-bar {
+    height: 26px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 20px;
+    font-size: 10px;
+    color: var(--dim);
+    flex-shrink: 0;
+  }
+  .bottom-bar .coord { color: var(--accent); font-size: 10px; }
+
+  /* MODAL */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 40px rgba(0,229,255,0.15);
+    width: 640px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .modal-close:hover { color: var(--accent2); }
+  .modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+  }
+  .modal-body pre {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: #a8c8d8;
+    padding: 16px;
+    line-height: 1.6;
+    background: var(--bg);
+    white-space: pre;
+    tab-size: 2;
+  }
+  .modal-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .modal-footer .btn { width: auto; padding: 6px 16px; margin: 0; }
+
+  /* TOOLTIP */
+  .tooltip {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 4px 8px;
+    font-size: 10px;
+    color: var(--accent);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 50;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SECTOR FORGE</h1>
+  <span class="header-sep">|</span>
+  <span style="font-size:11px; color: var(--dim);">DOOM-LIKE LEVEL EDITOR</span>
+  <div class="status-bar">
+    <span id="modeDisplay">MODE: <span>DRAW</span></span>
+    <span id="sectorCount">SECTORS: <span>0</span></span>
+    <span id="snapStatus">SNAP: <span>ON</span></span>
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="tool-btn active" id="toolDraw" title="Draw Sector (D)" onclick="setTool('draw')">✏</button>
+    <button class="tool-btn" id="toolSelect" title="Select (S)" onclick="setTool('select')">⬡</button>
+    <button class="tool-btn" id="toolPan" title="Pan (Space)" onclick="setTool('pan')">✋</button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" title="Toggle Snap (G)" onclick="toggleSnap()">⊞</button>
+    <button class="tool-btn" title="Zoom In (+)" onclick="zoom(1.2)">＋</button>
+    <button class="tool-btn" title="Zoom Out (-)" onclick="zoom(0.8)">－</button>
+    <button class="tool-btn" title="Reset View (R)" onclick="resetView()">⌖</button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn danger" title="Delete Selected (Del)" onclick="deleteSelected()">✕</button>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="editor"></canvas>
+    <div class="canvas-overlay" id="hintText">
+      ✏ Click to place points — double-click or close loop to finish sector
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel">
+    <div class="panel-section">
+      <div class="panel-title">Sectors</div>
+      <div class="sector-list" id="sectorList">
+        <div class="no-selection">No sectors yet.<br>Use Draw tool to create.</div>
+      </div>
+    </div>
+
+    <div class="panel-section" id="propPanel">
+      <div class="panel-title">Properties</div>
+      <div id="propContent">
+        <div class="no-selection">Select a sector to edit its properties.</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Actions</div>
+      <button class="btn accent" onclick="exportCode()">⬇ EXPORT JS CODE</button>
+      <button class="btn" onclick="clearAll()">⚠ CLEAR ALL</button>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <span>WORLD: <span class="coord" id="coordDisplay">0, 0</span></span>
+  <span>ZOOM: <span class="coord" id="zoomDisplay">1.0x</span></span>
+  <span style="margin-left:auto; font-size:10px">D=Draw  S=Select  Space=Pan  G=Snap  Del=Delete  R=Reset</span>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-bg" id="exportModal">
+  <div class="modal">
+    <div class="modal-header">
+      EXPORT // JS CODE
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCode"></pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">CLOSE</button>
+      <button class="btn success" onclick="copyCode()">⎘ COPY TO CLIPBOARD</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('editor');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+
+let view = { x: 0, y: 0, scale: 60 }; // pixels per world unit
+let tool = 'draw';
+let snapEnabled = true;
+let snapGrid = 0.5;
+
+let sectors = [];
+let selectedSector = null;
+let drawingPoints = []; // current in-progress sector points (world coords)
+let mouseWorld = { x: 0, y: 0 };
+let mouseScreen = { x: 0, y: 0 };
+let panning = false;
+let panStart = { x: 0, y: 0 };
+
+const COLORS = [
+  '#00e5ff','#aaff44','#ff9922','#ff44aa','#aa44ff',
+  '#44ffaa','#ffee44','#ff6644','#44aaff','#aaaaff'
+];
+let colorIdx = 0;
+
+// ─── RESIZE ──────────────────────────────────────────────────────────────────
+
+function resizeCanvas() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  // Center view on first load
+  if (view.x === 0 && view.y === 0) {
+    view.x = canvas.width / 2;
+    view.y = canvas.height / 2;
+  }
+  render();
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ─── COORD TRANSFORM ─────────────────────────────────────────────────────────
+
+function worldToScreen(wx, wy) {
+  return {
+    x: view.x + wx * view.scale,
+    y: view.y - wy * view.scale  // y-flip
+  };
+}
+
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - view.x) / view.scale,
+    y: -(sy - view.y) / view.scale
+  };
+}
+
+function snapPoint(p) {
+  if (!snapEnabled) return p;
+  return {
+    x: Math.round(p.x / snapGrid) * snapGrid,
+    y: Math.round(p.y / snapGrid) * snapGrid
+  };
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0a0c0f';
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid();
+  drawSectors();
+  drawDrawingState();
+  drawCursor();
+}
+
+function drawGrid() {
+  const minor = snapGrid;
+  const major = 1;
+
+  // Calculate visible world bounds
+  const tl = screenToWorld(0, 0);
+  const br = screenToWorld(canvas.width, canvas.height);
+
+  const startX = Math.floor(tl.x / minor) * minor;
+  const endX = Math.ceil(br.x / minor) * minor;
+  const startY = Math.floor(br.y / minor) * minor;
+  const endY = Math.ceil(tl.y / minor) * minor;
+
+  ctx.lineWidth = 1;
+  for (let wx = startX; wx <= endX; wx += minor) {
+    const s = worldToScreen(wx, 0);
+    const isMajor = Math.abs(Math.round(wx / major) * major - wx) < 0.001;
+    ctx.strokeStyle = isMajor ? '#1a2535' : '#111820';
+    ctx.beginPath();
+    ctx.moveTo(s.x, 0);
+    ctx.lineTo(s.x, canvas.height);
+    ctx.stroke();
+  }
+  for (let wy = startY; wy <= endY; wy += minor) {
+    const s = worldToScreen(0, wy);
+    const isMajor = Math.abs(Math.round(wy / major) * major - wy) < 0.001;
+    ctx.strokeStyle = isMajor ? '#1a2535' : '#111820';
+    ctx.beginPath();
+    ctx.moveTo(0, s.y);
+    ctx.lineTo(canvas.width, s.y);
+    ctx.stroke();
+  }
+
+  // Axes
+  const origin = worldToScreen(0, 0);
+  ctx.strokeStyle = '#1e2a38';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(origin.x, 0); ctx.lineTo(origin.x, canvas.height);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, origin.y); ctx.lineTo(canvas.width, origin.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawSectors() {
+  for (const sector of sectors) {
+    const isSelected = sector === selectedSector;
+    const col = sector.color || '#00e5ff';
+
+    // Fill
+    ctx.beginPath();
+    for (let i = 0; i < sector.points.length; i++) {
+      const p = worldToScreen(sector.points[i].x, sector.points[i].y);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = isSelected
+      ? `${col}18`
+      : `${col}0a`;
+    ctx.fill();
+
+    // Outline
+    ctx.strokeStyle = isSelected ? col : col + '88';
+    ctx.lineWidth = isSelected ? 2 : 1.5;
+    ctx.stroke();
+
+    // Points
+    for (const p of sector.points) {
+      const s = worldToScreen(p.x, p.y);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, isSelected ? 4 : 3, 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? col : col + 'aa';
+      ctx.fill();
+    }
+
+    // Label
+    const cx = sector.points.reduce((a, b) => a + b.x, 0) / sector.points.length;
+    const cy = sector.points.reduce((a, b) => a + b.y, 0) / sector.points.length;
+    const center = worldToScreen(cx, cy);
+    ctx.fillStyle = isSelected ? col : col + '88';
+    ctx.font = `11px 'Share Tech Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sector.name, center.x, center.y);
+
+    // Portal edges (shared walls)
+    drawPortalEdges(sector);
+  }
+}
+
+function drawPortalEdges(sector) {
+  for (let i = 0; i < sector.points.length; i++) {
+    const p1 = sector.points[i];
+    const p2 = sector.points[(i + 1) % sector.points.length];
+
+    // Check if any other sector shares this edge
+    for (const other of sectors) {
+      if (other === sector) continue;
+      if (sharesEdge(p1, p2, other)) {
+        const s1 = worldToScreen(p1.x, p1.y);
+        const s2 = worldToScreen(p2.x, p2.y);
+        ctx.strokeStyle = '#ff9922bb';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        ctx.moveTo(s1.x, s1.y);
+        ctx.lineTo(s2.x, s2.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+      }
+    }
+  }
+}
+
+function sharesEdge(p1, p2, sector) {
+  for (let i = 0; i < sector.points.length; i++) {
+    const q1 = sector.points[i];
+    const q2 = sector.points[(i + 1) % sector.points.length];
+    if (
+      (ptEq(p1, q1) && ptEq(p2, q2)) ||
+      (ptEq(p1, q2) && ptEq(p2, q1))
+    ) return true;
+  }
+  return false;
+}
+
+function ptEq(a, b) {
+  return Math.abs(a.x - b.x) < 0.001 && Math.abs(a.y - b.y) < 0.001;
+}
+
+function drawDrawingState() {
+  if (tool !== 'draw' || drawingPoints.length === 0) return;
+
+  const snap = snapPoint(mouseWorld);
+  const allPoints = [...drawingPoints, snap];
+
+  // Draw completed segments
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  for (let i = 0; i < drawingPoints.length; i++) {
+    const s = worldToScreen(drawingPoints[i].x, drawingPoints[i].y);
+    if (i === 0) ctx.moveTo(s.x, s.y);
+    else ctx.lineTo(s.x, s.y);
+  }
+  ctx.stroke();
+
+  // Draw line to current mouse
+  const last = drawingPoints[drawingPoints.length - 1];
+  const sLast = worldToScreen(last.x, last.y);
+  const sMouse = worldToScreen(snap.x, snap.y);
+  ctx.strokeStyle = '#00e5ff88';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(sLast.x, sLast.y);
+  ctx.lineTo(sMouse.x, sMouse.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Closing line back to first point
+  if (drawingPoints.length >= 2) {
+    const sFirst = worldToScreen(drawingPoints[0].x, drawingPoints[0].y);
+    ctx.strokeStyle = '#00e5ff44';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath();
+    ctx.moveTo(sMouse.x, sMouse.y);
+    ctx.lineTo(sFirst.x, sFirst.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Points
+  for (const p of drawingPoints) {
+    const s = worldToScreen(p.x, p.y);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#00e5ff';
+    ctx.fill();
+  }
+
+  // Check if near first point (close loop)
+  if (drawingPoints.length >= 3) {
+    const first = drawingPoints[0];
+    const dist = Math.hypot(snap.x - first.x, snap.y - first.y);
+    const firstScreen = worldToScreen(first.x, first.y);
+    if (dist < snapGrid * 1.5) {
+      ctx.beginPath();
+      ctx.arc(firstScreen.x, firstScreen.y, 10, 0, Math.PI * 2);
+      ctx.strokeStyle = '#aaff44';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+}
+
+function drawCursor() {
+  const snap = snapPoint(mouseWorld);
+  const s = worldToScreen(snap.x, snap.y);
+
+  if (tool === 'draw') {
+    // Crosshair
+    ctx.strokeStyle = '#00e5ff88';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(s.x - 8, s.y); ctx.lineTo(s.x + 8, s.y);
+    ctx.moveTo(s.x, s.y - 8); ctx.lineTo(s.x, s.y + 8);
+    ctx.stroke();
+
+    // Snap dot
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#00e5ff';
+    ctx.fill();
+  }
+}
+
+// ─── TOOLS ───────────────────────────────────────────────────────────────────
+
+function setTool(t) {
+  tool = t;
+  drawingPoints = [];
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool' + t.charAt(0).toUpperCase() + t.slice(1))?.classList.add('active');
+  updateHint();
+  canvas.style.cursor = t === 'pan' ? 'grab' : t === 'select' ? 'default' : 'crosshair';
+  render();
+}
+
+function updateHint() {
+  const hints = {
+    draw: '✏ Click to place points — double-click or close loop to finish',
+    select: '⬡ Click a sector to select — drag to pan view',
+    pan: '✋ Drag to pan view'
+  };
+  document.getElementById('hintText').textContent = hints[tool] || '';
+}
+
+function toggleSnap() {
+  snapEnabled = !snapEnabled;
+  document.getElementById('snapStatus').innerHTML = `SNAP: <span>${snapEnabled ? 'ON' : 'OFF'}</span>`;
+  render();
+}
+
+function zoom(factor) {
+  view.scale *= factor;
+  view.scale = Math.min(200, Math.max(10, view.scale));
+  document.getElementById('zoomDisplay').textContent = (view.scale / 60).toFixed(1) + 'x';
+  render();
+}
+
+function resetView() {
+  view.x = canvas.width / 2;
+  view.y = canvas.height / 2;
+  view.scale = 60;
+  document.getElementById('zoomDisplay').textContent = '1.0x';
+  render();
+}
+
+function deleteSelected() {
+  if (!selectedSector) return;
+  sectors = sectors.filter(s => s !== selectedSector);
+  selectedSector = null;
+  updateSectorList();
+  updatePropPanel();
+  render();
+}
+
+function clearAll() {
+  if (!confirm('Clear all sectors?')) return;
+  sectors = [];
+  selectedSector = null;
+  drawingPoints = [];
+  colorIdx = 0;
+  updateSectorList();
+  updatePropPanel();
+  render();
+}
+
+// ─── SECTOR CREATION ─────────────────────────────────────────────────────────
+
+function finishSector() {
+  if (drawingPoints.length < 3) {
+    drawingPoints = [];
+    render();
+    return;
+  }
+
+  const newSector = {
+    name: `sector${sectors.length}`,
+    points: drawingPoints.map(p => ({ ...p })),
+    topOffset: 1.0,
+    bottomOffset: 1.0,
+    floorColor: '#353',
+    ceilingColor: '#533',
+    color: COLORS[colorIdx % COLORS.length]
+  };
+  colorIdx++;
+
+  sectors.push(newSector);
+  drawingPoints = [];
+  selectedSector = newSector;
+  updateSectorList();
+  updatePropPanel();
+  render();
+}
+
+// ─── MOUSE EVENTS ─────────────────────────────────────────────────────────────
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseScreen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  mouseWorld = screenToWorld(mouseScreen.x, mouseScreen.y);
+
+  // Pan
+  if (panning) {
+    view.x += e.movementX;
+    view.y += e.movementY;
+  }
+
+  const snap = snapPoint(mouseWorld);
+  document.getElementById('coordDisplay').textContent = `${snap.x.toFixed(2)}, ${snap.y.toFixed(2)}`;
+  render();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 1 || tool === 'pan') {
+    panning = true;
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button === 2) {
+    if (tool === 'draw' && drawingPoints.length > 0) {
+      drawingPoints.pop();
+      render();
+    }
+    return;
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (panning) {
+    panning = false;
+    canvas.style.cursor = tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
+  }
+});
+
+canvas.addEventListener('click', (e) => {
+  if (panning) return;
+
+  const snap = snapPoint(mouseWorld);
+
+  if (tool === 'draw') {
+    // Check if closing the loop
+    if (drawingPoints.length >= 3) {
+      const first = drawingPoints[0];
+      const dist = Math.hypot(snap.x - first.x, snap.y - first.y);
+      if (dist < snapGrid * 1.5) {
+        finishSector();
+        return;
+      }
+    }
+    drawingPoints.push({ ...snap });
+    render();
+
+  } else if (tool === 'select') {
+    // Find sector under click
+    let hit = null;
+    for (let i = sectors.length - 1; i >= 0; i--) {
+      if (pointInPolygon(mouseWorld, sectors[i].points)) {
+        hit = sectors[i];
+        break;
+      }
+    }
+    selectedSector = hit;
+    updateSectorList();
+    updatePropPanel();
+    render();
+  }
+});
+
+canvas.addEventListener('dblclick', (e) => {
+  if (tool === 'draw' && drawingPoints.length >= 3) {
+    finishSector();
+  }
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  const wBefore = screenToWorld(mouseScreen.x, mouseScreen.y);
+  view.scale *= factor;
+  view.scale = Math.min(200, Math.max(10, view.scale));
+  const wAfter = screenToWorld(mouseScreen.x, mouseScreen.y);
+  view.x += (wAfter.x - wBefore.x) * view.scale;
+  view.y -= (wAfter.y - wBefore.y) * view.scale;
+  document.getElementById('zoomDisplay').textContent = (view.scale / 60).toFixed(1) + 'x';
+  render();
+}, { passive: false });
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+
+function pointInPolygon(p, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    const intersect = ((yi > p.y) !== (yj > p.y)) &&
+      (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// ─── KEYBOARD ─────────────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'd') setTool('draw');
+  if (e.key === 's') setTool('select');
+  if (e.key === ' ') { e.preventDefault(); setTool('pan'); }
+  if (e.key === 'g') toggleSnap();
+  if (e.key === '+' || e.key === '=') zoom(1.2);
+  if (e.key === '-') zoom(0.8);
+  if (e.key === 'r') resetView();
+  if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+  if (e.key === 'Escape') {
+    drawingPoints = [];
+    render();
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === ' ' && tool === 'pan') setTool('draw');
+});
+
+// ─── UI UPDATES ───────────────────────────────────────────────────────────────
+
+function updateSectorList() {
+  const list = document.getElementById('sectorList');
+  const count = document.querySelector('#sectorCount span');
+  count.textContent = sectors.length;
+
+  if (sectors.length === 0) {
+    list.innerHTML = '<div class="no-selection">No sectors yet.<br>Use Draw tool to create.</div>';
+    return;
+  }
+
+  list.innerHTML = sectors.map((s, i) => `
+    <div class="sector-item ${s === selectedSector ? 'selected' : ''}" onclick="selectSector(${i})">
+      <div class="sector-dot" style="background:${s.color}"></div>
+      <span>${s.name}</span>
+      <span style="margin-left:auto;color:var(--dim);font-size:9px">${s.points.length}pts</span>
+    </div>
+  `).join('');
+}
+
+function selectSector(i) {
+  selectedSector = sectors[i];
+  updateSectorList();
+  updatePropPanel();
+  render();
+}
+
+function updatePropPanel() {
+  const panel = document.getElementById('propContent');
+  if (!selectedSector) {
+    panel.innerHTML = '<div class="no-selection">Select a sector to edit its properties.</div>';
+    return;
+  }
+  const s = selectedSector;
+
+  // Count portals
+  let portalCount = 0;
+  for (let i = 0; i < s.points.length; i++) {
+    const p1 = s.points[i], p2 = s.points[(i+1) % s.points.length];
+    for (const other of sectors) {
+      if (other !== s && sharesEdge(p1, p2, other)) { portalCount++; break; }
+    }
+  }
+
+  panel.innerHTML = `
+    <div class="field-row">
+      <label>Name</label>
+      <input type="text" value="${s.name}" onchange="updateProp('name', this.value)">
+    </div>
+    <div class="field-row">
+      <label>Top Offset</label>
+      <input type="number" step="0.1" value="${s.topOffset}" onchange="updateProp('topOffset', parseFloat(this.value))">
+    </div>
+    <div class="field-row">
+      <label>Bot Offset</label>
+      <input type="number" step="0.1" value="${s.bottomOffset}" onchange="updateProp('bottomOffset', parseFloat(this.value))">
+    </div>
+    <div class="field-row">
+      <label>Floor Color</label>
+      <input type="color" value="${cssToHex(s.floorColor)}" onchange="updateProp('floorColor', hexToCss(this.value))">
+    </div>
+    <div class="field-row">
+      <label>Ceil Color</label>
+      <input type="color" value="${cssToHex(s.ceilingColor)}" onchange="updateProp('ceilingColor', hexToCss(this.value))">
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
+      ${s.points.length} points · ${portalCount} portal${portalCount !== 1 ? 's' : ''}
+    </div>
+    <button class="btn danger" style="margin-top:6px" onclick="deleteSelected()">✕ DELETE SECTOR</button>
+  `;
+}
+
+function updateProp(key, val) {
+  if (!selectedSector) return;
+  selectedSector[key] = val;
+  updateSectorList();
+  render();
+}
+
+function cssToHex(color) {
+  // Convert short css like "#353" to full hex
+  if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+    return '#' + color[1]+color[1]+color[2]+color[2]+color[3]+color[3];
+  }
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
+  return '#336633';
+}
+
+function hexToCss(hex) { return hex; }
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+
+function generateNeighborDetection() {
+  const lines = [];
+  const sectorNames = sectors.map(s => s.name);
+
+  // Detect neighbors
+  const neighborMap = new Map();
+  for (const s of sectors) neighborMap.set(s, new Set());
+
+  for (let i = 0; i < sectors.length; i++) {
+    for (let j = i + 1; j < sectors.length; j++) {
+      const a = sectors[i], b = sectors[j];
+      for (let ei = 0; ei < a.points.length; ei++) {
+        const p1 = a.points[ei], p2 = a.points[(ei+1) % a.points.length];
+        if (sharesEdge(p1, p2, b)) {
+          neighborMap.get(a).add(b);
+          neighborMap.get(b).add(a);
+        }
+      }
+    }
+  }
+
+  return neighborMap;
+}
+
+function exportCode() {
+  if (sectors.length === 0) {
+    alert('No sectors to export!');
+    return;
+  }
+
+  const neighborMap = generateNeighborDetection();
+  const lines = [];
+
+  lines.push('// ═══════════════════════════════════════════════════');
+  lines.push('// SECTOR FORGE — Generated Level Data');
+  lines.push(`// ${sectors.length} sector(s), exported ${new Date().toLocaleString()}`);
+  lines.push('// ═══════════════════════════════════════════════════');
+  lines.push('');
+
+  // Sector declarations
+  for (const s of sectors) {
+    const pts = s.points.map(p => `\n    { x: ${p.x}, y: ${p.y} }`).join(',');
+    lines.push(`const ${s.name} = new Sector(`);
+    lines.push(`  [${pts}`);
+    lines.push(`  ],`);
+    lines.push(`  ${s.topOffset},  // topOffset`);
+    lines.push(`  ${s.bottomOffset}   // bottomOffset`);
+    lines.push(`);`);
+    lines.push(`${s.name}.floorColor = "${s.floorColor}";`);
+    lines.push(`${s.name}.ceilingColor = "${s.ceilingColor}";`);
+    lines.push('');
+  }
+
+  // Neighbor links
+  lines.push('// — Neighbor Links —');
+  for (const s of sectors) {
+    const neighbors = [...neighborMap.get(s)];
+    if (neighbors.length > 0) {
+      lines.push(`${s.name}.neighbors.push(${neighbors.map(n => n.name).join(', ')});`);
+    }
+  }
+  lines.push('');
+
+  // Portal creation
+  lines.push('// — Portal Creation —');
+  lines.push(`[${sectors.map(s => s.name).join(', ')}].forEach(s => s.createPortals());`);
+  lines.push('');
+
+  // Initial player sector
+  lines.push('// — Player Start —');
+  lines.push(`Player.currentSector = ${sectors[0].name};`);
+  lines.push(`Player.pos = { x: 0, y: (1 - ${sectors[0].name}.bottomOffset), z: 0 };`);
+
+  const code = lines.join('\n');
+  document.getElementById('exportCode').textContent = code;
+  document.getElementById('exportModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+
+function copyCode() {
+  const code = document.getElementById('exportCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('.modal-footer .btn.success');
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIED!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+// Close modal on bg click
+document.getElementById('exportModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+
+updateSectorList();
+updatePropPanel();
+updateHint();
+render();
+</script>
+</body>
+</html>

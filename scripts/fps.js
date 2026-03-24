@@ -4,8 +4,8 @@
 // =============================================================================
 
 const screen = document.getElementById('fps');
-screen.width = 500;
-screen.height = 500;
+screen.width = 340;
+screen.height = 320;
 const ctx = screen.getContext("2d");
 
 const scratchCanvas = document.createElement('canvas');
@@ -57,6 +57,7 @@ let breakables = [];
 let lootables = [];
 let visibleTiles = [];
 let floorTexture;
+let exitTexture;
 const floorTextureWidth = 32;
 const floorTextureHeight = 32;
 
@@ -66,45 +67,45 @@ let viewedMap = new Int8Array(mapSize * mapSize);
 
 let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 6, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 8, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 5, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 9, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 3, 0, 3, 1, 1, 1, 1, 1, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 6, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 1, 0, 1, 1, 1, 0, 6, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 4, 0, 0, 4, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 3, 0, 3, 1, 1, 7, 5, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 1, 1, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 0, 5, 0, 1, 1, 0, 5, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 0, 0, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 4, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 1, 1, 0, 5, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 1, 3, 0, 5, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 0, 7, 1, 7, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 8, 3, 1, 3, 1, 1, 1, 3, 5, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 5, 1, 1, 1, 5, 0, 3, 1, 2, 2, 1, 3, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 0, 7, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [2, 0, 0, 0, 5, 0, 0, 0, 3, 1, 2, 2, 1, 3, 0, 6, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 1, 6, 0, 0, 0, 6, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 3, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 4, 1, 0, 0, 0],
+  [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 6, 0, 0, 6, 0, 0, 6, 0, 0, 1, 1, 0, 0, 0],
+  [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 4, 5, 0, 0, 5, 0, 0, 5, 0, 0, 5, 4, 1, 0, 0, 0],
+  [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 1, 1, 0, 0, 0],
+  [0, 1, 1, 0, 0, 5, 0, 0, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 0, 0, 0],
+  [0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+  [0, 1, 1, 3, 0, 3, 1, 1, 1, 1, 1, 1, 0, 5, 0, 1, 1, 1, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 5, 4, 1, 0, 0, 0],
+  [0, 0, 0, 1, 0, 1, 1, 1, 0, 6, 0, 1, 0, 0, 0, 4, 1, 4, 0, 0, 0, 3, 1, 3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+  [0, 1, 1, 3, 0, 3, 1, 1, 7, 5, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 4, 0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 1, 1, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 1, 5, 0, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 0, 5, 0, 1, 1, 0, 5, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 4, 0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 4, 0, 0, 0, 4, 1, 0, 0, 0, 1, 0, 0, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 0, 5, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 1, 4, 5, 0, 0, 5, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 3, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 7, 1, 7, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 8, 3, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 5, 1, 1, 1, 5, 0, 3, 1, 2, 2, 1, 3, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 7, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [2, 0, 0, 0, 5, 0, 0, 0, 3, 1, 2, 2, 1, 3, 0, 6, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 6, 0, 0, 0, 6, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 3, 5, 3, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 5, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 9, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 3, 8, 0, 0, 0, 0, 0, 0, 6, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 9, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, -2, 0, 7, 3, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 5, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 1, 1, 1, 3, 8, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 7, 0, 7, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 5, 1, 1, 0, 5, 0, 0, 5, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 8, 0, 5, 0, 7, 0, 5, 0, 0, 0, 0, 0, 0, 6, 9, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 0, 0, 5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 9, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 5, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
 
@@ -165,7 +166,8 @@ const player = {
     y : 1.5,
     angle : ((Math.PI / 8) * 3),
     speed : 0.1,
-    shootAni : null
+    shootAni : null,
+    gold: 0
 };
 
 function placePlayer(map, size) {
@@ -489,6 +491,18 @@ const updateProjectile = (entity) => {
         const simDist = Math.abs(entity.x - ent.x) + Math.abs(ent.y - entity.y)
         if (ent.breakable && simDist <= 0.25) {
             sprites.splice(sprites.indexOf(ent), 1);
+            sprites.push({
+                x: ent.x,
+                y: ent.y,
+                tex: myAssets.goldPile,
+                dist: 110,
+                dimmable: false,
+                aWidth: 32,
+                breakable: false,
+                lootable: false,
+                animations: 1,
+                gold: Math.floor(Math.random() * 30)
+            });
             entity.toDestroy = true;
         }
     }
@@ -749,7 +763,7 @@ function ddaRayCast({x, y}, angle, map) {
             side = 0;
         }
 
-        if (map[mapY][mapX] !== 0) hit = true;
+        if (map[mapY][mapX] > 0) hit = true;
 
         const mapIndex = (mapY * mapSize + mapX);
         viewedMap[mapIndex] = 1;
@@ -865,32 +879,6 @@ const drawTexturedFloor = () => {
             distanceToLocation = screen.height / distanceToLocation;
             let mapDraw = false;
 
-            if ((y >= screen.height - 80) && (x >= screen.width - 80)) {
-                mapDraw = true;
-                let tx = Math.floor((80 - (screen.width-x)) / 2);
-                let ty = Math.floor((80 - (screen.height-y)) / 2);
-                
-                const mapIndex = (ty * mapSize + tx);
-                let color;
-
-                if (viewedMap[mapIndex] > 0) {
-                    color = levelMap[ty][tx] === 0 ? 0 : 255;
-                } else {
-                    color = 0;
-                }
-                if (Math.floor(player.x) !== tx || Math.floor(player.y) !== ty) {
-                    pixels[screenIndex]     = color;
-                    pixels[screenIndex + 1] = color;
-                    pixels[screenIndex + 2] = color;
-                    pixels[screenIndex + 3] = 100;
-                } else {
-                    pixels[screenIndex]     = 255;
-                    pixels[screenIndex + 1] = 100;
-                    pixels[screenIndex + 2] = 100;
-                    pixels[screenIndex + 3] = 255;                        
-                }
-            }
-
             if ((y >= col.drawEnd - 1 || y <= col.drawStart + 1) && !mapDraw) {
                 const worldX = player.x + cosA * distanceToLocation;
                 const worldY = player.y + sinA * distanceToLocation;
@@ -906,13 +894,44 @@ const drawTexturedFloor = () => {
                 if (tileY < 0 || tileY >= mapH || tileX < 0 || tileX >= mapW) continue;
 
                 const lightLevel = lightMap[tileY][tileX];
+                const isExit = levelMap[tileY][tileX] === -2 && y >= col.drawStart + 1;
+                const texToUse = isExit ? exitTexture : floorTexture;
                 const intensity = ((lightLevel + 2) / 12);
 
                 const texIndex = (texY * floorTextureWidth + texX) * 4;
-                pixels[screenIndex]     = floorTexture[texIndex] * intensity;
-                pixels[screenIndex + 1] = floorTexture[texIndex+1] * intensity;
-                pixels[screenIndex + 2] = floorTexture[texIndex+2] * intensity;
+                pixels[screenIndex]     = texToUse[texIndex] * intensity;
+                pixels[screenIndex + 1] = texToUse[texIndex+1] * intensity;
+                pixels[screenIndex + 2] = texToUse[texIndex+2] * intensity;
                 pixels[screenIndex + 3] = 255;
+            }
+
+            if ((y >= screen.height - 80) && (x >= screen.width - 80)) {
+                mapDraw = true;
+                let tx = Math.floor((80 - (screen.width-x)) / 2);
+                let ty = Math.floor((80 - (screen.height-y)) / 2);
+                
+                const mapIndex = (ty * mapSize + tx);
+                let color;
+
+                if (viewedMap[mapIndex] > 0) {
+                    color = levelMap[ty][tx] === 0 ? 0 : 255;
+                } else {
+                    color = 0;
+                }
+
+                if ((Math.floor(player.x) !== tx || Math.floor(player.y) !== ty)) {
+                    if ( viewedMap[mapIndex] > 0 && levelMap[ty][tx] !== 0) {
+                        pixels[screenIndex]     = color;
+                        pixels[screenIndex + 1] = color;
+                        pixels[screenIndex + 2] = color;
+                        pixels[screenIndex + 3] = 255;
+                    }
+                } else {
+                    pixels[screenIndex]     = 255;
+                    pixels[screenIndex + 1] = 100;
+                    pixels[screenIndex + 2] = 100;
+                    pixels[screenIndex + 3] = 255;                        
+                }
             }
         }
     }
@@ -980,6 +999,21 @@ const drawSprites = () => {
     });
 
     sprites.sort((a, b) => b.dist - a.dist);
+
+    const toDes = [];
+
+    for (const sprite of sprites) {
+        if (sprite.dist <= 1 && sprite.tex == myAssets.goldPile) {
+            player.gold += sprite.gold;
+            toDes.push(sprite);
+            myAssets.getCoin.play();
+        }
+    }
+
+    while (toDes.length > 0) {
+        const sprite = toDes.pop();
+        sprites.splice(sprites.indexOf(sprite),1);
+    }
 
     sprites.forEach((sprite) => {
         drawSprite(sprite);
@@ -1049,7 +1083,7 @@ async function init() {
     
     ctx.imageSmoothingEnabled = false;
     const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack,
-        tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack, blueEnergy
+        tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack, blueEnergy, stairsDown, goldPile
     ] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
@@ -1072,19 +1106,23 @@ async function init() {
         loadImage('./assets/wizardHurt.png'),
         loadImage('./assets/wizardAttack.png'),
         loadImage('./assets/blueEnergy.png'),
+        loadImage('./assets/stairsDown.png'),
+        loadImage('./assets/goldPile.png'),
     ]);
 
     myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
         skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack,
-    blueEnergy };
+    blueEnergy, stairsDown, goldPile, getCoin: new Audio('./assets/getCoin.mp3') };
 
     myAssets.stormTheKeep.loop = true;
 
     floorTexture = getTextureData(tileFloor);
+    exitTexture = getTextureData(stairsDown);
 
     walls['1'] = wall;
     walls['2'] = tileWall;
     walls['3'] = bannerWall;
+
     spriteTypes['4'] = tube;
     spriteTypes['5'] = lamp;
     spriteTypes['6'] = potionTable;
@@ -1183,7 +1221,7 @@ function update() {
         let tempX = player.x + dx * player.speed;
         let tempY = player.y + dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
             player.x = tempX;
             player.y = tempY
         }
@@ -1197,7 +1235,7 @@ function update() {
         let tempX = player.x - dx * player.speed;
         let tempY = player.y - dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
             player.x = tempX;
             player.y = tempY
         }
@@ -1211,7 +1249,7 @@ function update() {
         let tempX = player.x + dx * player.speed;
         let tempY = player.y + dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
             player.x = tempX;
             player.y = tempY
         }
@@ -1225,7 +1263,7 @@ function update() {
         let tempX = player.x - dx * player.speed;
         let tempY = player.y - dy * player.speed;
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] === 0) {
+        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
             player.x = tempX;
             player.y = tempY
         }

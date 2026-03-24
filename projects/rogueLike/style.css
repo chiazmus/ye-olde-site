@@ -1,0 +1,7 @@
+* {
+  font-family: "Space Mono", monospace;
+}
+
+canvas {
+  image-rendering: pixelated;
+}
