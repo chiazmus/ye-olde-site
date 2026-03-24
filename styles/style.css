@@ -131,7 +131,7 @@ aside .card {
     width: clamp(100px, 80%, 800px);
     height: auto;
     align-self: center;   
-    filter: grayscale(70%); 
+    filter: grayscale(60%); 
 }
 
 #board {

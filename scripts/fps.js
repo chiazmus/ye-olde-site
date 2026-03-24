@@ -43,6 +43,8 @@ let mouseDeltaX = 0;
 
 let tick = 0;
 
+ctx.font = "12px Almendra";
+
 
 // =============================================================================
 // map
@@ -1063,6 +1065,12 @@ const drawSkybox = (img) => {
 // Top-level game orchestration: displayScreen, init, and the update game loop
 // =============================================================================
 
+function displayUI() {
+    ctx.drawImage(myAssets.goldPile, 0, screen.height - (myAssets.goldPile.height + 16));
+    ctx.fillStyle = 'white';
+    ctx.fillText(player.gold, 32, screen.height - 16);
+}
+
 function displayScreen() {
     clear();
     animationPlaying = false;
@@ -1076,6 +1084,7 @@ function displayScreen() {
         const spriteNum = (player.shootAni.width / 32)-Math.floor(attackState/5);
         ctx.drawImage(player.shootAni, spriteNum * 32, 0, 32, 32, screen.width - (256+64), screen.height - 256, 256, 256);
     }
+    displayUI();
     drawCRT();
 }
 
