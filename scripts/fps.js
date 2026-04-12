@@ -1394,7 +1394,7 @@ async function init() {
 
     myAssets.stormTheKeep.loop = true;
 
-    allLevels = await fetchJsonData('./scripts/fps_levels.json');
+    allLevels = await fetchJsonData('./scripts/fpsLevels.json');
 
     console.log(allLevels);
 
