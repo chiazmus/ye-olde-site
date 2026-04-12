@@ -254,10 +254,10 @@ class Lootable {
             }
         } else if (this.consumable) {
             this.count --;
+            this.applyEffects(playerObject);
+            playerObject.effects.push({'time': 60, 'effect': this.stats});
             if (this.count < 1) {
                 playerObject.inventory.splice(playerObject.inventory.indexOf(this), 1);
-                playerObject.effects.push({'time': 60, 'effect': this.stats});
-                this.applyEffects(playerObject);
             }
         }
     }
@@ -1290,13 +1290,13 @@ function displayUI() {
         inventoryList.innerHTML = '';
         for (const item of player.inventory) {
             const newItem = document.createElement('li');
+            if (item.consumable) newItem.classList.toggle("consumable");
             newItem.textContent = `${item.count > 1 ? '(' + item.count + ') ' : ''}${item.name} ${item.equipped ? '⚔' : ''}`;
             newItem.addEventListener('click', () => {
                 item.toggleEquip(player);
                 if (player.inventory.includes(item)) newItem.textContent = `${item.count > 1 ? '(' + item.count+') ' : ''}${item.name} ${item.equipped ? '⚔' : ''}`;
                 else inventoryList.removeChild(newItem);
             });
-            if (item.consumable) newItem.classList.toggle("consumable");
             inventoryList.appendChild(newItem);
         }
     }
