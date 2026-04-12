@@ -127,11 +127,105 @@ aside .card {
     align-self: center;
 }
 
+#fpsContainer {
+    width: fit-content;
+    height: fit-content;
+    padding: 0;
+    align-self: center;
+    margin: 1rem;
+    border: 4px solid gray;
+    box-shadow: 2px 2px 1px black;
+    position: relative;
+}
+
 #fps {
-    width: clamp(100px, 80%, 800px);
+    display: block;
+    width: clamp(100px, 80vw, 800px);
     height: auto;
-    align-self: center;   
     filter: grayscale(60%); 
+    margin: 0;
+}
+
+#hud {
+    display: grid;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr 1fr 1fr 0.25fr;
+    grid-template-areas: 
+    '. . inv inv'
+    '. . inv inv'
+    '. . inv inv'
+    'stat stat stat .';
+    pointer-events: none;
+    gap: 10px;
+}
+
+#statContainer {
+    display: flex;
+    color: gold;
+    grid-area: stat;
+    background-color: #303030;
+    border: 4px ridge goldenrod; 
+    border-radius: 20px;      
+    corner-shape: scoop;
+    width: fit-content;
+    height: fit-content;
+}
+
+#goldCount, #healthCount {
+    margin: 0.5rem 5rem;
+    font-weight: bold;
+    font-size: large;
+}
+
+#invDisplay {
+    display: None;
+    pointer-events: none;
+    grid-area: inv;
+    background-color: #222;
+    border: 4px ridge goldenrod; 
+    border-radius: 20px;      
+    corner-shape: scoop;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: scroll;
+    scrollbar-color: gold #223; /* thumb color | track color */
+    scrollbar-width: thin;
+}
+
+#invDisplay.show {
+    display: flex;
+    pointer-events: all;
+}
+
+#invDisplay h3 {
+    color: white;
+    border-bottom: 4px double white;
+    font-size: larger;
+    margin: 1rem 0;
+}
+
+#invDisplay li {
+    color: white;
+    font-size: larger;
+    margin: 1rem 0;
+}
+
+#invDisplay li.consumable {
+    color: skyblue;
+}
+
+#invDisplay li:hover {
+    color: gold;
+    cursor: pointer;
+}
+
+#invDisplay ul {
+    list-style: none;
 }
 
 #board {

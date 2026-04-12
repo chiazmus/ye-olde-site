@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Generator</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a090f;color:#c8c0d8;font-family:system-ui,sans-serif;padding:1.25rem}
+  h1{font-size:18px;font-weight:500;color:#e0d8f0;margin-bottom:1rem;letter-spacing:0.02em}
+  #dg-ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:1rem;background:#13111a;border:0.5px solid #2e2844;border-radius:8px;padding:0.75rem 1rem}
+  #dg-ctrl label{font-size:13px;color:#8a80a0}
+  #dg-ctrl span{font-size:13px;font-weight:500;min-width:32px;color:#e0d8f0}
+  input[type=range]{width:100px;cursor:pointer;accent-color:#7f77dd}
+  .gb{font-size:13px;padding:6px 14px;cursor:pointer;background:#1e1a2e;border:0.5px solid #3d3550;border-radius:6px;color:#c8c0d8;transition:background 0.15s,transform 0.1s}
+  .gb:hover{background:#2e2844;border-color:#534ab7}
+  .gb:active{transform:scale(0.97)}
+  .gb.primary{background:#3c3489;border-color:#7f77dd;color:#e0d8f0}
+  .gb.primary:hover{background:#534ab7}
+  #dg-wrap{overflow:auto;border:0.5px solid #2e2844;border-radius:8px;background:#0a090f;margin-bottom:0.75rem}
+  canvas{display:block}
+  #dg-stats{font-size:12px;color:#6a6080;margin-bottom:0.75rem;min-height:1.4em}
+  #dg-legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem}
+  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#8a80a0}
+  .leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  #dg-array{margin-top:1rem}
+  #dg-array summary{font-size:13px;color:#8a80a0;cursor:pointer;user-select:none;margin-bottom:0.5rem}
+  #dg-array summary:hover{color:#c8c0d8}
+  #dg-textarea{width:100%;height:160px;background:#0d0b18;color:#6a9fb0;font-family:monospace;font-size:11px;border:0.5px solid #2e2844;border-radius:6px;padding:0.6rem;resize:vertical;outline:none}
+  .divider{width:0.5px;height:20px;background:#2e2844;margin:0 2px}
+</style>
+</head>
+<body>
+<h1>Dungeon Generator</h1>
+<div id="dg-ctrl">
+  <label>Width</label>
+  <input type="range" id="sw" min="20" max="100" value="72" step="1">
+  <span id="sw-o">72</span>
+  <div class="divider"></div>
+  <label>Height</label>
+  <input type="range" id="sh" min="20" max="100" value="54" step="1">
+  <span id="sh-o">54</span>
+  <div class="divider"></div>
+  <label>Rooms</label>
+  <input type="range" id="sr" min="4" max="36" value="18" step="1">
+  <span id="sr-o">18</span>
+  <div class="divider"></div>
+  <label>Tunnel width</label>
+  <input type="range" id="st" min="1" max="3" value="1" step="1">
+  <span id="st-o">1</span>
+  <div class="divider"></div>
+  <button class="gb primary" id="regen">Regenerate</button>
+  <button class="gb" id="copy">Copy array</button>
+</div>
+<div id="dg-wrap"><canvas id="cv"></canvas></div>
+<div id="dg-stats"></div>
+<div id="dg-legend"></div>
+<details id="dg-array">
+  <summary>Show 2D array (1 = wall, 0 = open)</summary>
+  <textarea id="dg-textarea" readonly spellcheck="false"></textarea>
+</details>
+
+<script>
+(()=>{
+  const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+  const swEl=document.getElementById('sw'),shEl=document.getElementById('sh');
+  const srEl=document.getElementById('sr'),stEl2=document.getElementById('st');
+  const swoEl=document.getElementById('sw-o'),shoEl=document.getElementById('sh-o');
+  const sroEl=document.getElementById('sr-o'),stoEl=document.getElementById('st-o');
+  const statsEl=document.getElementById('dg-stats');
+  const legendEl=document.getElementById('dg-legend');
+  const textarea=document.getElementById('dg-textarea');
+  let dungeon=[];
+
+  swEl.oninput=()=>swoEl.textContent=swEl.value;
+  shEl.oninput=()=>shoEl.textContent=shEl.value;
+  srEl.oninput=()=>sroEl.textContent=srEl.value;
+  stEl2.oninput=()=>stoEl.textContent=stEl2.value;
+  document.getElementById('regen').onclick=gen;
+  document.getElementById('copy').onclick=()=>{
+    const btn=document.getElementById('copy');
+    const t='['+dungeon.map(r=>'['+r.join(',')+']').join(',\n')+']';
+    navigator.clipboard.writeText(t).then(()=>{btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy array',1500);});
+  };
+
+  const T_VOID=0,T_FLOOR=1,T_WALL=4,T_STONE=20,T_PILLAR=5,T_PIT=6;
+  const makeGrid=(W,H,v)=>Array.from({length:H},()=>new Array(W).fill(v));
+  const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+  // ── TEMPLATE DEFINITIONS ─────────────────────────────────────────────
+  // cells=floor, pillars=impassable decor, pits=visual void, walls=solid fill inside room
+
+  const TEMPLATES={
+
+    cross:()=>{
+      const w=11,h=11,cx=5,cy=5,cells=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)
+        if((y>=3&&y<=7)||(x>=3&&x<=7))cells.push([x,y]);
+      return{w,h,cx,cy,cells,pillars:[],pits:[],walls:[],name:'cross hall',color:'rgba(180,120,220,0.85)'};
+    },
+
+    pillared:()=>{
+      const w=13,h=9,cx=6,cy=4,cells=[],pillars=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      [[2,2],[2,6],[10,2],[10,6]].forEach(([px,py])=>
+        pillars.push([px,py],[px+1,py],[px,py+1],[px+1,py+1]));
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'pillared hall',color:'rgba(80,180,220,0.85)'};
+    },
+
+    throne:()=>{
+      const w=15,h=13,cx=7,cy=7,cells=[];
+      for(let y=2;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=0;y<3;y++)for(let x=5;x<10;x++)cells.push([x,y]);
+      const pillars=[[1,3],[1,4],[13,3],[13,4],[1,9],[1,10],[13,9],[13,10]];
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'throne room',color:'rgba(220,100,100,0.85)'};
+    },
+
+    vault:()=>{
+      const w=12,h=12,cx=6,cy=6,cells=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)
+        if(Math.min(x,w-1-x)+Math.min(y,h-1-y)>=2)cells.push([x,y]);
+      return{w,h,cx,cy,cells,pillars:[],pits:[],walls:[],name:'vault',color:'rgba(220,180,60,0.85)'};
+    },
+
+    crypt:()=>{
+      const w=11,h=15,cx=5,cy=7,cells=[];
+      for(let y=0;y<h;y++)for(let x=2;x<9;x++)cells.push([x,y]);
+      for(let y=1;y<h-1;y+=3){cells.push([0,y],[1,y],[9,y],[10,y]);}
+      const pillars=[[3,2],[7,2],[3,12],[7,12]];
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'crypt',color:'rgba(100,220,180,0.85)'};
+    },
+
+    // Arena: ring floor, solid wall mass in center
+    arena:()=>{
+      const w=15,h=15,cx=7,cy=7,cells=[],walls=[],pillars=[];
+      const rOuter=7,rInner=3;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const dist=Math.sqrt((x-cx)**2+(y-cy)**2);
+        if(dist<=rOuter-0.5){
+          if(dist<=rInner-0.5)walls.push([x,y]);
+          else cells.push([x,y]);
+        }
+      }
+      [[2,2],[12,2],[2,12],[12,12],[7,1],[7,13],[1,7],[13,7]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits:[],walls,name:'arena',color:'rgba(200,140,60,0.85)'};
+    },
+
+    // ── 10 NEW TEMPLATES ─────────────────────────────────────────────────
+
+    // Wide barracks split by a dividing wall with a doorway gap
+    barracks:()=>{
+      const w=16,h=10,cx=8,cy=5,cells=[],walls=[],pillars=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=0;y<h;y++)if(y!==4&&y!==5)walls.push([7,y]);
+      [[1,1],[14,1],[1,8],[14,8]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits:[],walls,name:'barracks',color:'rgba(160,200,100,0.85)'};
+    },
+
+    // Diamond-shaped chamber with cardinal pillars
+    diamond:()=>{
+      const w=13,h=13,cx=6,cy=6,cells=[],pillars=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)
+        if(Math.abs(x-cx)+Math.abs(y-cy)<=6)cells.push([x,y]);
+      [[cx,cy-4],[cx,cy+4],[cx-4,cy],[cx+4,cy]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'diamond hall',color:'rgba(220,120,220,0.85)'};
+    },
+
+    // Ritual circle with a ring of 8 pillars and a central altar
+    ritual:()=>{
+      const w=15,h=15,cx=7,cy=7,cells=[],pillars=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)
+        if(Math.sqrt((x-cx)**2+(y-cy)**2)<=7-0.5)cells.push([x,y]);
+      for(let i=0;i<8;i++){
+        const a=(i/8)*Math.PI*2;
+        pillars.push([Math.round(cx+4.5*Math.cos(a)),Math.round(cy+4.5*Math.sin(a))]);
+      }
+      pillars.push([cx,cy]);
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'ritual circle',color:'rgba(200,80,200,0.85)'};
+    },
+
+    // Small guard post with a ring of pillars
+    guardpost:()=>{
+      const w=9,h=9,cx=4,cy=4,cells=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      const pillars=[[1,1],[4,1],[7,1],[1,4],[7,4],[1,7],[4,7],[7,7]];
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'guard post',color:'rgba(240,160,80,0.85)'};
+    },
+
+    // Very wide great hall with two pillar rows and a walled dais
+    greathall:()=>{
+      const w=19,h=11,cx=9,cy=5,cells=[],walls=[],pillars=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=1;y<h-1;y++){if(y!==5)walls.push([16,y]);walls.push([17,y],[18,y]);}
+      for(let x=2;x<=13;x+=3)pillars.push([x,2],[x,h-3]);
+      return{w,h,cx,cy,cells,pillars,pits:[],walls,name:'great hall',color:'rgba(240,200,80,0.85)'};
+    },
+
+    // Cistern with a rectangular central pit pool and corner pillars
+    cistern:()=>{
+      const w=14,h=10,cx=7,cy=5,cells=[],pillars=[],pits=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=2;y<h-2;y++)for(let x=3;x<w-3;x++)pits.push([x,y]);
+      [[1,1],[12,1],[1,8],[12,8]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits,walls:[],name:'cistern',color:'rgba(60,180,220,0.85)'};
+    },
+
+    // Internal maze-like wall partitions
+    maze:()=>{
+      const w=13,h=13,cx=6,cy=6,cells=[],walls=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let x=1;x<=7;x++)walls.push([x,3]);
+      for(let x=5;x<=11;x++)walls.push([x,6]);
+      for(let x=1;x<=7;x++)walls.push([x,9]);
+      for(let y=3;y<=6;y++)walls.push([8,y]);
+      for(let y=6;y<=9;y++)walls.push([4,y]);
+      return{w,h,cx,cy,cells,pillars:[],pits:[],walls,name:'maze room',color:'rgba(180,220,100,0.85)'};
+    },
+
+    // Star-shaped chamber with 8 spokes
+    star:()=>{
+      const w=17,h=17,cx=8,cy=8,cells=[],pillars=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const dx=x-cx,dy=y-cy,dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<=8*0.45){cells.push([x,y]);continue;}
+        let inSpoke=false;
+        for(let i=0;i<8;i++){
+          const a=(i/8)*Math.PI*2,cosA=Math.cos(a),sinA=Math.sin(a);
+          const along=dx*cosA+dy*sinA,perp=Math.abs(-dx*sinA+dy*cosA);
+          if(along>0&&along<=6&&perp<=1.5)inSpoke=true;
+        }
+        if(inSpoke)cells.push([x,y]);
+      }
+      for(let i=0;i<8;i++){
+        const a=(i/8)*Math.PI*2;
+        pillars.push([Math.round(cx+6*Math.cos(a)),Math.round(cy+6*Math.sin(a))]);
+      }
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'star chamber',color:'rgba(255,160,80,0.85)'};
+    },
+
+    // Antechamber with flanking columns and a central pit channel
+    antechamber:()=>{
+      const w=13,h=15,cx=6,cy=7,cells=[],pillars=[],pits=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=3;y<h-3;y++)pits.push([cx,y]);
+      for(let y=3;y<h-3;y+=3)pillars.push([cx-2,y],[cx+2,y]);
+      return{w,h,cx,cy,cells,pillars,pits,walls:[],name:'antechamber',color:'rgba(140,200,180,0.85)'};
+    },
+
+    // Large rotunda with a pit moat ring and 12-pillar inner colonnade
+    rotunda:()=>{
+      const w=17,h=17,cx=8,cy=8,cells=[],pillars=[],pits=[];
+      const rOuter=8,rPit=6.2,rPitW=0.9,rCol=4.5;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const dist=Math.sqrt((x-cx)**2+(y-cy)**2);
+        if(dist>rOuter-0.5)continue;
+        cells.push([x,y]);
+        if(Math.abs(dist-rPit)<=rPitW)pits.push([x,y]);
+      }
+      for(let i=0;i<12;i++){
+        const a=(i/12)*Math.PI*2;
+        pillars.push([Math.round(cx+rCol*Math.cos(a)),Math.round(cy+rCol*Math.sin(a))]);
+      }
+      return{w,h,cx,cy,cells,pillars,pits,walls:[],name:'rotunda',color:'rgba(160,140,255,0.85)'};
+    },
+
+    // L-shaped room — two rectangles joined at a corner
+    lshape:()=>{
+      const w=14,h=14,cx=5,cy=9,cells=[],pillars=[];
+      for(let y=7;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=0;y<8;y++)for(let x=0;x<7;x++)cells.push([x,y]);
+      [[5,5],[5,6]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'L-chamber',color:'rgba(200,240,160,0.85)'};
+    },
+
+    // Octagonal room
+    octagon:()=>{
+      const w=13,h=13,cx=6,cy=6,cells=[];
+      const cut=3;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)
+        if(Math.min(x,w-1-x)+Math.min(y,h-1-y)>=cut)cells.push([x,y]);
+      const pillars=[[2,1],[cx,1],[10,1],[1,cx],[11,cx],[2,11],[cx,11],[10,11]];
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'octagon',color:'rgba(255,200,120,0.85)'};
+    },
+
+    // Library / archive — rows of wall "shelves" leaving narrow aisles
+    library:()=>{
+      const w=15,h=13,cx=7,cy=6,cells=[],walls=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      // Shelf rows every 2 rows, leaving one aisle column free
+      for(let y=2;y<h-2;y+=3)
+        for(let x=1;x<w-1;x++)
+          if((x%4)!==0)walls.push([x,y]);
+      return{w,h,cx,cy,cells,pillars:[],pits:[],walls,name:'library',color:'rgba(200,160,100,0.85)'};
+    },
+
+    // Collapsed bridge — long hall with a pit chasm spanning the middle
+    bridge:()=>{
+      const w=17,h=7,cx=8,cy=3,cells=[],pillars=[],pits=[];
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      // Wide chasm in the center, narrow crossing strip
+      for(let y=1;y<h-1;y++)for(let x=5;x<12;x++)
+        if(y!==3)pits.push([x,y]);
+      [[1,1],[15,1],[1,5],[15,5]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits,walls:[],name:'bridge hall',color:'rgba(120,200,240,0.85)'};
+    },
+
+    // Throne antechamber — T-shape: wide base, narrow entrance hall at top
+    tshape:()=>{
+      const w=15,h=14,cx=7,cy=10,cells=[],pillars=[];
+      for(let y=6;y<h;y++)for(let x=0;x<w;x++)cells.push([x,y]);
+      for(let y=0;y<7;y++)for(let x=5;x<10;x++)cells.push([x,y]);
+      [[1,7],[13,7],[1,12],[13,12]].forEach(p=>pillars.push(p));
+      return{w,h,cx,cy,cells,pillars,pits:[],walls:[],name:'T-hall',color:'rgba(220,180,240,0.85)'};
+    },
+  };
+
+  const TEMPLATE_KEYS=Object.keys(TEMPLATES);
+
+  // Legend
+  function buildLegend(usedNames){
+    legendEl.innerHTML='';
+    const fixed=[{color:'rgba(255,220,100,0.9)',name:'spawn'},{color:'rgba(80,200,120,0.9)',name:'exit'}];
+    const tplLeg=TEMPLATE_KEYS
+      .filter(k=>usedNames.has(TEMPLATES[k]().name))
+      .map(k=>{const t=TEMPLATES[k]();return{color:t.color,name:t.name};});
+    [...fixed,...tplLeg].forEach(({color,name})=>{
+      legendEl.innerHTML+=`<div class="leg"><div class="leg-dot" style="background:${color}"></div>${name}</div>`;
+    });
+  }
+
+  // ── PLACEMENT ─────────────────────────────────────────────────────────
+
+  function tryPlaceTemplate(grid,rooms,W,H,tplFn){
+    const tpl=tplFn();
+    for(let attempt=0;attempt<80;attempt++){
+      const ox=rnd(2,W-tpl.w-3),oy=rnd(2,H-tpl.h-3);
+      let clear=true;
+      for(const[dx,dy]of tpl.cells){
+        const nx=ox+dx,ny=oy+dy;
+        if(nx<1||ny<1||nx>=W-1||ny>=H-1||grid[ny][nx]===T_FLOOR){clear=false;break;}
+      }
+      if(!clear)continue;
+
+      const wallSet=new Set((tpl.walls||[]).map(([dx,dy])=>`${dx},${dy}`));
+      const pillarSet=new Set((tpl.pillars||[]).map(([dx,dy])=>`${dx},${dy}`));
+
+      for(const[dx,dy]of tpl.cells){
+        const k=`${dx},${dy}`;
+        if(wallSet.has(k)||pillarSet.has(k))continue;
+        grid[oy+dy][ox+dx]=T_FLOOR;
+      }
+
+      const bx1=ox-1,by1=oy-1,bx2=ox+tpl.w,by2=oy+tpl.h;
+      const doorCands=[];
+      for(let x=ox;x<ox+tpl.w;x++){doorCands.push([x,by1]);doorCands.push([x,by2]);}
+      for(let y=oy;y<oy+tpl.h;y++){doorCands.push([bx1,y]);doorCands.push([bx2,y]);}
+      const doors=new Set(shuffle(doorCands).slice(0,rnd(2,6)).map(([x,y])=>`${x},${y}`));
+      for(let y=by1;y<=by2;y++)for(let x=bx1;x<=bx2;x++){
+        if(x<0||y<0||x>=W||y>=H||grid[y][x]===T_FLOOR)continue;
+        if(!doors.has(`${x},${y}`))grid[y][x]=T_STONE;
+      }
+
+      rooms.push({
+        x:ox,y:oy,w:tpl.w,h:tpl.h,cx:ox+tpl.cx,cy:oy+tpl.cy,
+        isTemplate:true,name:tpl.name,color:tpl.color,
+        pillars:(tpl.pillars||[]).map(([dx,dy])=>[ox+dx,oy+dy]),
+        pits:(tpl.pits||[]).map(([dx,dy])=>[ox+dx,oy+dy]),
+        walls:(tpl.walls||[]).map(([dx,dy])=>[ox+dx,oy+dy]),
+      });
+      return true;
+    }
+    return false;
+  }
+
+  function placeRectRoom(grid,rooms,W,H,minR,maxR){
+    const rw=rnd(minR,maxR),rh=rnd(minR,maxR);
+    const rx=rnd(1,W-rw-2),ry=rnd(1,H-rh-2);
+    for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++)if(grid[y][x]===T_FLOOR)return false;
+    for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++)grid[y][x]=T_FLOOR;
+    const cx=Math.floor(rx+rw/2),cy=Math.floor(ry+rh/2);
+    const sides=[];
+    for(let x=rx;x<rx+rw;x++){sides.push([x,ry-1]);sides.push([x,ry+rh]);}
+    for(let y=ry;y<ry+rh;y++){sides.push([rx-1,y]);sides.push([rx+rw,y]);}
+    const doors=new Set(shuffle(sides).slice(0,rnd(2,4)).map(([x,y])=>`${x},${y}`));
+    for(let y=ry-1;y<=ry+rh;y++)for(let x=rx-1;x<=rx+rw;x++){
+      if(x<0||y<0||x>=W||y>=H||grid[y][x]===T_FLOOR)continue;
+      if(!doors.has(`${x},${y}`))grid[y][x]=T_STONE;
+    }
+    rooms.push({x:rx,y:ry,w:rw,h:rh,cx,cy,isTemplate:false,pillars:[],pits:[],walls:[]});
+    return true;
+  }
+
+  // ── A* ────────────────────────────────────────────────────────────────
+
+  function astar(grid,sx,sy,ex,ey,W,H){
+    const key=(x,y)=>y*W+x;
+    const open=new Map(),closed=new Set(),g=new Map(),parent=new Map();
+    const h=(x,y)=>Math.abs(x-ex)+Math.abs(y-ey);
+    open.set(key(sx,sy),{x:sx,y:sy,f:h(sx,sy)});
+    g.set(key(sx,sy),0);
+    const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
+    let iters=0;
+    while(open.size>0&&iters++<14000){
+      let best=null,bf=Infinity;
+      for(const[,n]of open)if(n.f<bf){bf=n.f;best=n;}
+      const{x,y}=best,k=key(x,y);
+      open.delete(k);closed.add(k);
+      if(x===ex&&y===ey){
+        const path=[];let cx=x,cy=y;
+        while(parent.has(key(cx,cy))){path.push([cx,cy]);const p=parent.get(key(cx,cy));cx=p[0];cy=p[1];}
+        path.push([sx,sy]);return path.reverse();
+      }
+      for(const[dx,dy]of dirs){
+        const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=W||ny>=H)continue;
+        const nk=key(nx,ny);
+        if(closed.has(nk))continue;
+        const tv=grid[ny][nx];
+        const cost=tv===T_VOID?T_WALL:tv===T_PILLAR?30:tv;
+        const ng=(g.get(k)||0)+cost;
+        if(!open.has(nk)||ng<(g.get(nk)||Infinity)){
+          g.set(nk,ng);parent.set(nk,[x,y]);
+          open.set(nk,{x:nx,y:ny,f:ng+h(nx,ny)});
+        }
+      }
+    }
+    return null;
+  }
+
+  function digTunnel(grid,path,tw,W,H){
+    if(!path)return;
+    const half=Math.floor(tw/2);
+    for(const[x,y]of path)
+      for(let dy=-half;dy<=half;dy++)
+        for(let dx=-half;dx<=half;dx++){
+          const nx=x+dx,ny=y+dy;
+          if(nx<0||ny<0||nx>=W||ny>=H)continue;
+          if(grid[ny][nx]!==T_FLOOR&&grid[ny][nx]!==T_PILLAR)grid[ny][nx]=T_FLOOR;
+        }
+  }
+
+  function finalizeWalls(grid,W,H,allPillars,allPits,allWalls){
+    const pillarSet=new Set(allPillars.map(([x,y])=>`${x},${y}`));
+    const pitSet=new Set(allPits.map(([x,y])=>`${x},${y}`));
+    const wallSet=new Set(allWalls.map(([x,y])=>`${x},${y}`));
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++)
+      if(grid[y][x]===T_STONE)grid[y][x]=T_WALL;
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      if(grid[y][x]!==T_FLOOR)continue;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=W||ny>=H)continue;
+        if(grid[ny][nx]===T_VOID)grid[ny][nx]=T_WALL;
+      }
+    }
+    for(const k of pillarSet){const[x,y]=k.split(',').map(Number);if(x>=0&&y>=0&&x<W&&y<H)grid[y][x]=T_PILLAR;}
+    for(const k of pitSet){const[x,y]=k.split(',').map(Number);if(x>=0&&y>=0&&x<W&&y<H)grid[y][x]=T_PIT;}
+    for(const k of wallSet){const[x,y]=k.split(',').map(Number);if(x>=0&&y>=0&&x<W&&y<H)grid[y][x]=T_WALL;}
+  }
+
+  // ── GENERATION ────────────────────────────────────────────────────────
+
+  function gen(){
+    const W=parseInt(swEl.value),H=parseInt(shEl.value);
+    const numRooms=parseInt(srEl.value),tw=parseInt(stEl2.value);
+    const minR=4,maxR=Math.max(5,Math.floor(Math.min(W,H)/5));
+    const grid=makeGrid(W,H,T_VOID);
+    const rooms=[];
+
+    const numTemplates=Math.max(1,Math.floor(numRooms*0.4));
+    const tplKeys=shuffle([...TEMPLATE_KEYS]);
+    let tplPlaced=0;
+    for(let i=0;i<numTemplates*5&&tplPlaced<numTemplates;i++){
+      if(tryPlaceTemplate(grid,rooms,W,H,TEMPLATES[tplKeys[i%tplKeys.length]]))tplPlaced++;
+    }
+    const numRect=numRooms-rooms.length;
+    for(let attempt=0;attempt<numRect*20&&rooms.length<numRooms;attempt++){
+      placeRectRoom(grid,rooms,W,H,minR,maxR);
+    }
+
+    shuffle(rooms);
+
+    for(let i=0;i<rooms.length;i++){
+      const a=rooms[i],b=rooms[(i+1)%rooms.length];
+      digTunnel(grid,astar(grid,a.cx,a.cy,b.cx,b.cy,W,H),tw,W,H);
+    }
+
+    const allPillars=rooms.flatMap(r=>r.pillars||[]);
+    const allPits=rooms.flatMap(r=>r.pits||[]);
+    const allWalls=rooms.flatMap(r=>r.walls||[]);
+    finalizeWalls(grid,W,H,allPillars,allPits,allWalls);
+
+    dungeon=grid.map(row=>row.map(v=>(v===T_FLOOR||v===T_PIT)?0:(v===T_WALL||v===T_PILLAR)?1:0));
+    textarea.value='['+dungeon.map(r=>'['+r.join(',')+']').join(',\n')+']';
+    render(grid,W,H,rooms);
+
+    const tplRooms=rooms.filter(r=>r.isTemplate);
+    buildLegend(new Set(tplRooms.map(r=>r.name)));
+    const floors=grid.flat().filter(c=>c===T_FLOOR).length;
+    const walls=grid.flat().filter(c=>c===T_WALL||c===T_PILLAR).length;
+    statsEl.textContent=`${W}×${H} · ${rooms.length} rooms (${tplRooms.length} template) · ${floors} floor · ${walls} wall · ${tplRooms.map(r=>r.name).join(', ')||'no templates'}`;
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────────
+
+  function render(grid,W,H,rooms){
+    const sz=Math.max(3,Math.min(12,Math.floor(Math.min(window.innerWidth-48,960)/Math.max(W,H))));
+    cv.width=W*sz;cv.height=H*sz;
+    const C={
+      void:'#0a090f',floor1:'#c8a85a',floor2:'#be9e52',
+      wall_lit:'#4a4060',wall_top:'#3d3550',wall_face:'#252035',wall_side:'#2e2844',
+      pillar:'#1a1628',pillar_hi:'#2a2040',
+      pit:'#0d0b18',pit_edge:'#1a1530',
+    };
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const v=grid[y][x],px=x*sz,py=y*sz;
+        if(v===T_VOID){
+          ctx.fillStyle=C.void;ctx.fillRect(px,py,sz,sz);
+        }else if(v===T_FLOOR){
+          ctx.fillStyle=(x+y)%2===0?C.floor1:C.floor2;ctx.fillRect(px,py,sz,sz);
+          if(sz>=5){ctx.fillStyle='rgba(0,0,0,0.07)';ctx.fillRect(px,py,1,sz);ctx.fillRect(px,py,sz,1);}
+        }else if(v===T_PIT){
+          ctx.fillStyle=C.pit;ctx.fillRect(px,py,sz,sz);
+          if(sz>=4){ctx.fillStyle=C.pit_edge;ctx.fillRect(px,py,sz,1);ctx.fillRect(px,py,1,sz);}
+        }else if(v===T_PILLAR){
+          ctx.fillStyle=C.pillar;ctx.fillRect(px,py,sz,sz);
+          if(sz>=4){
+            ctx.fillStyle=C.pillar_hi;
+            ctx.fillRect(px,py,sz,Math.max(1,Math.floor(sz*0.3)));
+            ctx.fillRect(px,py,Math.max(1,Math.floor(sz*0.3)),sz);
+          }
+        }else if(v===T_WALL){
+          const fN=y>0&&(grid[y-1][x]===T_FLOOR||grid[y-1][x]===T_PIT);
+          const fS=y<H-1&&(grid[y+1][x]===T_FLOOR||grid[y+1][x]===T_PIT);
+          const fE=x<W-1&&(grid[y][x+1]===T_FLOOR||grid[y][x+1]===T_PIT);
+          const fW=x>0&&(grid[y][x-1]===T_FLOOR||grid[y][x-1]===T_PIT);
+          if(fS){
+            ctx.fillStyle=C.wall_lit;ctx.fillRect(px,py,sz,sz);
+            if(sz>=4){ctx.fillStyle=C.wall_top;ctx.fillRect(px,py,sz,Math.ceil(sz*0.38));}
+          }else if(fN){
+            ctx.fillStyle=C.wall_face;ctx.fillRect(px,py,sz,sz);
+          }else if(fE||fW){
+            ctx.fillStyle=C.wall_side;ctx.fillRect(px,py,sz,sz);
+          }else{
+            ctx.fillStyle=C.wall_top;ctx.fillRect(px,py,sz,sz);
+          }
+        }
+      }
+    }
+    for(const room of rooms){
+      if(!room.isTemplate)continue;
+      ctx.fillStyle=room.color.replace(/[\d.]+\)$/,'0.09)');
+      ctx.fillRect(room.x*sz,room.y*sz,room.w*sz,room.h*sz);
+      if(sz>=5){
+        ctx.fillStyle=room.color;
+        ctx.font=`${Math.max(8,sz*1.05)}px system-ui,sans-serif`;
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(room.name,room.cx*sz+sz/2,room.cy*sz+sz/2);
+      }
+    }
+    if(rooms.length>0&&sz>=4){
+      const dot=(room,color)=>{
+        ctx.fillStyle=color;ctx.beginPath();
+        ctx.arc(room.cx*sz+sz/2,room.cy*sz+sz/2,sz*0.85,0,Math.PI*2);ctx.fill();
+      };
+      dot(rooms[0],'rgba(255,220,100,0.9)');
+      dot(rooms[rooms.length-1],'rgba(80,200,120,0.9)');
+    }
+  }
+
+  gen();
+})();
+</script>
+</body>
+</html>

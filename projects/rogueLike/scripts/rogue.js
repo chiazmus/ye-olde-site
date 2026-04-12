@@ -18,9 +18,11 @@ const Game = {
             '@' : 'aquamarine',
             '$' : 'gold',
         };
+
+        const displaySpace = document.getElementById("gameScreen");
         
         this.display = new ROT.Display(displayOptions);
-        document.body.appendChild(this.display.getContainer());
+        displaySpace.appendChild(this.display.getContainer());
         this.display.clear();
         this.scheduler = new ROT.Scheduler.Simple();
         this.engine = new ROT.Engine(this.scheduler);

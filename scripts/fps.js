@@ -19,6 +19,14 @@ const pixels = imageBuffer.data;
 const bgColor = '#111';
 const fgColor = '#5f5';
 
+const uiGold = document.getElementById('goldCount');
+const uiHealth = document.getElementById('healthCount');
+
+const uiInv = document.getElementById('invDisplay');
+
+let allLevels;
+
+let inventoryOpen = false;
 
 // =============================================================================
 // state
@@ -35,11 +43,14 @@ let animationPlaying = false;
 let sprites = [];
 let entities = [];
 let destroyList = [];
+const lootedAnimation = {};
 
 const keys = {};
 const lastKeys = {};
 let rayCastRows = {};
 let mouseDeltaX = 0;
+
+let currentLevel = 1;
 
 let tick = 0;
 
@@ -70,7 +81,7 @@ let viewedMap = new Int8Array(mapSize * mapSize);
 let levelMap = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-  [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 4, 1, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 0, 10, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 4, 1, 0, 0, 0],
   [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 6, 0, 0, 6, 0, 0, 6, 0, 0, 1, 1, 0, 0, 0],
   [0, 0, 0, 1, 1, 0, 0, 5, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0, 1, 1, 0, 0, 0, 1, 4, 5, 0, 0, 5, 0, 0, 5, 0, 0, 5, 4, 1, 0, 0, 0],
   [0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 1, 1, 0, 0, 0],
@@ -163,13 +174,40 @@ function initLightMap(lightMap, lightSource, map, size) {
 // Player object and spawn placement logic
 // =============================================================================
 
+const totalSlots = {
+    "weapon": 1,
+    "helm": 1,
+    "chestplate": 1,
+    "boots": 1,
+    "accessory": 4,
+    'consumable': 1000
+};
+
 const player = {
     x : 1.5,
     y : 1.5,
     angle : ((Math.PI / 8) * 3),
     speed : 0.1,
+    strength : 0.1,
+    luck : 0.1,
     shootAni : null,
-    gold: 0
+    gold: 0,
+    inventory: [],
+    equipped: [],
+    checkSlots () {
+        const slotReturn = {};
+
+        for (let item in totalSlots) {
+            slotReturn[item] = 0;
+        }
+
+        for (let item of this.equipped) {
+            slotReturn[item.type] = (slotReturn[item.type] || 0) + 1 ;
+        }
+
+        return slotReturn;
+    },
+    effects: []
 };
 
 function placePlayer(map, size) {
@@ -186,11 +224,144 @@ function placePlayer(map, size) {
     return map;
 }
 
+// Lootable and Equppable object definition
+
+class Lootable {
+    constructor (type, name, image, stats={}, equippable=true, consumable=false) {
+        this.type = type;
+        this.name = name;
+        this.equipped = false;
+        this.image = image;
+        this.stats = stats;
+        this.count = 1;
+        this.equippable = equippable;
+        this.consumable = consumable;
+    }
+
+    toggleEquip(playerObject) {
+        if (this.name != 'Ring of Awakening' && this.equippable) {
+            if (!this.equipped) {
+                const usedSlots = playerObject.checkSlots();
+                if (usedSlots[this.type] < totalSlots[this.type])  {
+                    this.equipped = true;
+                    playerObject.equipped.push(this);
+                    this.applyEffects(playerObject);
+                }
+            } else if (this.equipped) {
+                this.equipped = false;
+                playerObject.equipped.splice(playerObject.equipped.indexOf(this), 1);
+                this.removeEffects(playerObject);
+            }
+        } else if (this.consumable) {
+            this.count --;
+            if (this.count < 1) {
+                playerObject.inventory.splice(playerObject.inventory.indexOf(this), 1);
+                playerObject.effects.push({'time': 60, 'effect': this.stats});
+                this.applyEffects(playerObject);
+            }
+        }
+    }
+
+    applyEffects(playerObject) {
+        for (let effect in this.stats) {
+            playerObject[effect] += this.stats[effect];
+            playerObject[effect] = Math.max(playerObject[effect], 0.01);
+        }
+    }
+
+    removeEffects(playerObject) {
+        for (let effect in this.stats) {
+            playerObject[effect] -= this.stats[effect];
+            playerObject[effect] = Math.max(playerObject[effect], 0.01);
+        }
+    }
+}
+
+const modifiers = [
+["Unnecessary Acrobatics", { speed: 0.08, luck: -0.02 }],
+["Aggressive Sarcasm", { luck: 0.05, strength: -0.01 }],
+["Dramatic Poses", { luck: 0.01 }],
+["Caffeinated Jitters", { speed: 0.07, health: -0.05 }],
+["Questionable Fashion Choices", { luck: -0.03, strength: 0.04 }],
+["Existential Dread", { speed: -0.10, health: 0.02 }],
+["Accidental Competence", { luck: 0.12 }],
+["Swift Currents", { speed: 0.04 }],
+["The Iron Bastion", { strength: 0.1, speed: -0.05 }],
+["Eternal Vitality", { health: 0.15 }],
+["The Forsaken", { luck: -0.1, strength: 0.15 }],
+["Sharpened Focus", { luck: 0.05, strength: 0.05 }],
+["Waning Shadows", { speed: 0.07, health: -0.02 }],
+["The Titan", { strength: 0.2, speed: -0.05 }],
+["Primal Grace", { speed: 0.02, health: 0.05 }]
+];
+
+const itemNames = [
+["Amulet", "accessory"],
+["Ring", "accessory"],
+["Boots", "boots"],
+["Helm", "helm"],
+["Chestplate", "chestplate"],
+["Bracer", "accessory"],
+["Toe Ring", "accessory"],
+["Talisman", "accessory"],
+["Robe", "chestplate"],
+["Mask", "accessory"]
+];
+
+const potionModifiers = [
+    ["Pure Adrenaline", { speed: 0.1, health: -0.10 }],
+    ["Liquid Courage", { strength: 0.25, luck: -0.05 }],
+    ["Dumb Luck", { luck: 0.40, speed: -0.15 }],
+    ["Second Wind", { health: 0.35 }],
+    ["Berzerker Spirit", { strength: 0.40, health: -0.20 }],
+    ["Hyper-Focus", { luck: 0.20, strength: 0.15 }],
+    ["Ghostly Pace", { speed: 0.15, strength: -0.10 }]
+];
+
+const generateLoot = () => {
+
+    const chosenName = itemNames[Math.floor(Math.random() * itemNames.length)];
+    const chosenModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
+    const newItem = new Lootable(chosenName[1], `${chosenName[0]} of ${chosenModifier[0]}`, null, chosenModifier[1]);
+    return newItem;
+};
+
+const generateConsumable = () => {
+    // Select from the specific potion list
+    const chosenModifier = potionModifiers[Math.floor(Math.random() * potionModifiers.length)];
+    
+    // Create the item
+    const newItem = new Lootable(
+        'consumable', 
+        `Potion of ${chosenModifier[0]}`, 
+        null, 
+        chosenModifier[1], 
+        false, 
+        true
+    );
+    
+    return newItem;
+}
 
 // =============================================================================
 // assets
 // Image/audio loading utilities and texture data extraction
 // =============================================================================
+
+async function fetchJsonData(url) {
+  try {
+    const response = await fetch(url); 
+
+    if (!response.ok) { 
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json(); 
+    return data;
+  } catch (error) {
+    console.error('Error fetching JSON:', error); 
+  }
+}
 
 const getTextureData = (img) => {
     const tempCanvas = document.createElement('canvas');
@@ -465,7 +636,9 @@ function populateMap(map, size) {
                     aWidth: 32,
                     breakable: breakables.includes(map[y][x]) || false,
                     lootable: lootables.includes(map[y][x]) || false,
-                    animations: Math.floor(spriteTypes[map[y][x]].width / 32)
+                    animations: Math.floor(spriteTypes[map[y][x]].width / 32),
+                    looted: false,
+                    mapNum: map[y][x]
                 });
                 map[y][x] = 0;
             } else if (map[y][x] in entityTypes) {
@@ -597,7 +770,9 @@ const updateEnemy = (entity) => {
         const isMoving = canMoveX || canMoveY;
         entity.tex = isMoving ? entity.walkAnimation : entity.idleAnimation;
         entity.animations = isMoving ? Math.floor(entity.walkAnimation.width / 64) : 1;
-    } 
+    } else {
+        entity.tex = entity.idleAnimation;
+    }
     
     if (!hasLineOfSight && distanceToTarget <= targDist+0.3) {
         entity.target = null;
@@ -670,16 +845,19 @@ const lineOfSight = (p1, p2, map) => {
   const dy = Math.abs(y1 - y0);
   const sx = x0 < x1 ? 1 : -1;
   const sy = y0 < y1 ? 1 : -1;
+  const maxSteps = 15;
+  let steps = 0;
   let err = dx - dy;
 
   while (true) {
+    steps++;
     // Bounds check
     if (y0 < 0 || y0 >= map.length || x0 < 0 || x0 >= map[0].length) {
       return false;
     }
 
     // Wall check — anything non-zero is a wall
-    if (map[y0][x0] !== 0) {
+    if (map[y0][x0] !== 0 || steps > maxSteps * (1+player.luck)) {
       return false;
     }
 
@@ -810,6 +988,34 @@ const naiveRayCast = ({x, y}, angle, map) => {
 
     return {dist: distance({x: x, y: y}, {x: tempX, y: tempY}), hitX: tempX, hitY: tempY, side: side, tex: walls[map[Math.floor(tempY)][Math.floor(tempX)]] || walls[1]};
 };
+
+const drawRay = (dist, height, {hitX, hitY}, side, tex) => {
+        let wallX = (side === 1) ? hitY : hitX;
+        wallX -= Math.floor(wallX);
+        let texX = Math.floor(wallX * 32); //This is the texture x...
+        if (side === 1 && Math.cos(currentRay) > 0) texX = 31 - texX;
+        if (side === 0 && Math.sin(currentRay) < 0) texX = 31 - texX;
+        const lineHeight = (1/dist) * (screen.height);
+        const screenX = i * (screen.width / rays);
+        const drawStart = (screen.height / 2) - (lineHeight / 2);
+        const drawEnd = (screen.height / 2) + (lineHeight / 2);
+        const stripWidth = screen.width / rays;
+        const texture = tex; 
+
+        rayCastRows[screenX] = {drawStart, drawEnd};
+
+        zBuffer[Math.floor(screenX)] = dist;
+        ctx.drawImage(texture, texX, 0, 1, 32, screenX, drawStart, stripWidth, lineHeight);
+
+        let lightVal = lightMap[Math.floor(result.hitY)][Math.floor(result.hitX)];
+        lightVal = 1 - ((1/7) * (lightVal+2))
+        let opacity = lightVal;
+        if (side === 1) opacity += 0.2;
+        if (opacity > 1) opacity = 1; // Clamp to 1
+
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.fillRect(screenX, drawStart, stripWidth, lineHeight);    
+}
 
 const drawRayCast = ({x, y}, angle, map) => {
     const rays = screen.width/2;
@@ -1066,9 +1272,35 @@ const drawSkybox = (img) => {
 // =============================================================================
 
 function displayUI() {
-    ctx.drawImage(myAssets.goldPile, 0, screen.height - (myAssets.goldPile.height + 16));
-    ctx.fillStyle = 'white';
-    ctx.fillText(player.gold, 32, screen.height - 16);
+    const healthLevels = ['Robust', 'Fair', 'Declining', 'Weak', 'In Peril'];
+    uiGold.textContent = `◍:  ${player.gold}`;
+    uiHealth.textContent = `❤:  ${healthLevels[0]}`;
+
+    for (const ent of sprites) {
+        if (ent.lootable && !ent.looted && ent.dist <= 1.5) {
+            ctx.font = '24px Almendra'
+            ctx.fillStyle = 'cyan';
+            ctx.fillText('E', screen.width / 2, 32);
+            ctx.font = "12px Almendra";
+        }
+    }
+
+    if (inventoryOpen) {
+        const inventoryList = uiInv.querySelector('ul');
+        inventoryList.innerHTML = '';
+        for (const item of player.inventory) {
+            const newItem = document.createElement('li');
+            newItem.textContent = `${item.count > 1 ? '(' + item.count + ') ' : ''}${item.name} ${item.equipped ? '⚔' : ''}`;
+            newItem.addEventListener('click', () => {
+                item.toggleEquip(player);
+                if (player.inventory.includes(item)) newItem.textContent = `${item.count > 1 ? '(' + item.count+') ' : ''}${item.name} ${item.equipped ? '⚔' : ''}`;
+                else inventoryList.removeChild(newItem);
+            });
+            if (item.consumable) newItem.classList.toggle("consumable");
+            inventoryList.appendChild(newItem);
+        }
+    }
+
 }
 
 function displayScreen() {
@@ -1088,11 +1320,38 @@ function displayScreen() {
     drawCRT();
 }
 
+function nextLevel() {
+    
+    while (sprites.length > 0) sprites.pop();
+    while (entities.length > 0) entities.pop();
+
+    currentLevel++;
+    let possibleLevels;
+    if (currentLevel < 4) {
+        possibleLevels = allLevels.levels.levelTwoThree;
+        myAssets.skybox = myAssets.cavernSkybox;
+    } else {
+        possibleLevels = allLevels.levels.levelFourFive;
+        myAssets.skybox = myAssets.lavaCavern;
+    }
+    const levelChoice = Math.floor(Math.random() * possibleLevels.length);
+    levelMap = possibleLevels[levelChoice];
+    possibleLevels.splice(levelChoice, 1);
+
+    lightMap = generateEmptyMap(mapSize);
+    lightMap = initLightMap(lightMap, lightSource, levelMap, mapSize);
+    levelMap = placePlayer(levelMap, mapSize);
+    levelMap = populateMap(levelMap, mapSize);    
+    viewedMap = new Int8Array(mapSize * mapSize);
+
+}
+
 async function init() {
     
     ctx.imageSmoothingEnabled = false;
-    const [wall, tileWall, barrel, lamp, pot, arm, skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack,
-        tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack, blueEnergy, stairsDown, goldPile
+    const [wall, tileWall, barrel, lamp, pot, arm, mountainSkybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack,
+        tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack, blueEnergy, stairsDown, goldPile, cavernSkybox, chestClosed, chestOpen, potionTableEmpty, pillar,
+        lavaCavern, bookshelf, mapWall, woodWall
     ] = await Promise.all([
         loadImage('./assets/brickWall.png'),
         loadImage('./assets/tileWall.png'),
@@ -1117,13 +1376,27 @@ async function init() {
         loadImage('./assets/blueEnergy.png'),
         loadImage('./assets/stairsDown.png'),
         loadImage('./assets/goldPile.png'),
+        loadImage('./assets/fantasy-cavern-skybox.png'),
+        loadImage('./assets/chestClosed.png'),
+        loadImage('./assets/chestOpen.png'),
+        loadImage('./assets/potionTableEmpty.png'),
+        loadImage('./assets/pillar.png'),
+        loadImage('./assets/lava-cavern-skybox.png'),
+        loadImage('./assets/bookshelf.png'),
+        loadImage('./assets/mapWall.png'),
+        loadImage('./assets/woodWall.png'),
     ]);
 
     myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
-        skybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack,
-    blueEnergy, stairsDown, goldPile, getCoin: new Audio('./assets/getCoin.mp3') };
+        mountainSkybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack,
+    blueEnergy, stairsDown, goldPile, getCoin: new Audio('./assets/getCoin.mp3'), skybox: mountainSkybox , cavernSkybox, chestClosed, chestOpen, potionTableEmpty,
+    pillar, lavaCavern, bookshelf, mapWall, woodWall};
 
     myAssets.stormTheKeep.loop = true;
+
+    allLevels = await fetchJsonData('./scripts/fps_levels.json');
+
+    console.log(allLevels);
 
     floorTexture = getTextureData(tileFloor);
     exitTexture = getTextureData(stairsDown);
@@ -1131,17 +1404,25 @@ async function init() {
     walls['1'] = wall;
     walls['2'] = tileWall;
     walls['3'] = bannerWall;
+    walls['12'] = bookshelf;
+    walls['13'] = mapWall;
+    walls['14'] = woodWall;
 
     spriteTypes['4'] = tube;
     spriteTypes['5'] = lamp;
     spriteTypes['6'] = potionTable;
+    lootedAnimation['6'] = potionTableEmpty;
     spriteTypes['7'] = pot;
     entityTypes['8'] = guardWalk;
     entityTypes['9'] = wizardWalk;
+    spriteTypes['10'] = chestClosed;
+    lootedAnimation['10'] = chestOpen;
+    spriteTypes['11'] = pillar;
     entityAnimations[8] = {idle: guardIdle, walk: guardWalk, hurt: guardHurt, attack: guardAttack};
     entityAnimations[9] = {idle: wizardIdle, walk: wizardWalk, hurt: wizardHurt, attack: wizardAttack};
     breakables.push(7);
     lootables.push(6);
+    lootables.push(10);
     lightSource = [2, 5];
 
     for (let i = 0; i < mapSize * mapSize; i++) viewedMap[i] = 0;
@@ -1164,6 +1445,11 @@ async function init() {
 
     player.angle = toRad(45);
     player.shootAni = arm;
+
+    player.inventory.push(new Lootable('accessory', 'Ring of Awakening', null));
+    player.inventory[0].equipped = true;
+    player.equipped.push(player.inventory[0]);
+
     displayScreen();
 
     window.addEventListener('keydown', (e) => {
@@ -1187,107 +1473,163 @@ async function init() {
             myAssets.shootSound.play();
         }
     });
+
     window.addEventListener('mousemove', (e) => {
         if (document.pointerLockElement === screen) {
             mouseDeltaX += e.movementX; 
         }
     });
+
+    document.addEventListener('pointerlockchange', () => {
+        uiInv.classList.toggle('show');
+        inventoryOpen = !inventoryOpen;
+        if (inventoryOpen) displayUI();
+    });    
     update();
 }
 
 // Game Loop
 function update() {
-    let changed = false;
-    tick += 1;
-    // if (keys['ArrowLeft']) {
-    //     player.angle -= (Math.PI / 90);
-    //     changed = true;
-    // }
+    if (document.pointerLockElement === screen) {
+        let changed = false;
+        tick += 1;
+        // if (keys['ArrowLeft']) {
+        //     player.angle -= (Math.PI / 90);
+        //     changed = true;
+        // }
 
-    // if (keys['ArrowRight']) {
-    //     player.angle += (Math.PI / 90);
-    //     changed = true;
-    // }
-    let tempEntities = [...entities];
-    tempEntities.forEach((entity) => {
-        updateEntity(entity);
-    });
-
-    if (mouseDeltaX !== 0) {
-        const mouseSensitivity = 0.001;
-        player.angle += mouseDeltaX * mouseSensitivity;
-        mouseDeltaX = 0; // Reset after applying
-        changed = true;
-    }
-
-    if ((lastKeys['KeyE'] && (!keys['KeyE'])) && (document.pointerLockElement === screen)) {
-        // interact
-    }
-
-    if (keys['ArrowUp'] || keys['KeyW'] && (document.pointerLockElement === screen)) {
-        const dx = Math.cos(player.angle);
-        const dy = Math.sin(player.angle);
-        let tempX = player.x + dx * player.speed;
-        let tempY = player.y + dy * player.speed;
-
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
-            player.x = tempX;
-            player.y = tempY
+        // if (keys['ArrowRight']) {
+        //     player.angle += (Math.PI / 90);
+        //     changed = true;
+        // }
+        if (uiInv.classList.contains('show')) uiInv.classList.toggle('show');
+        
+        if (tick % 30 == 0) {
+            for (let effect of player.effects) {
+                effect.time --;
+                if (effect.time < 0) {
+                    player.effects.splice(player.effects.indexOf(effect), 1);
+                    for (let stat in effect.effect) {
+                        player[stat] -= effect.effect[stat];
+                        player[stat] = Math.max(player[stat], 0.01);
+                    }
+                }
+            }
         }
 
-        changed = true;
-    }
+        let tempEntities = [...entities];
 
-    if (keys['ArrowDown'] || keys['KeyS'] && (document.pointerLockElement === screen)) {
-        const dx = Math.cos(player.angle);
-        const dy = Math.sin(player.angle);
-        let tempX = player.x - dx * player.speed;
-        let tempY = player.y - dy * player.speed;
+        tempEntities.forEach((entity) => {
+            updateEntity(entity);
+        });
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
-            player.x = tempX;
-            player.y = tempY
+        if (mouseDeltaX !== 0) {
+            const mouseSensitivity = 0.001;
+            player.angle += mouseDeltaX * mouseSensitivity;
+            mouseDeltaX = 0; // Reset after applying
+            changed = true;
         }
 
-        changed = true;
-    }
+        if (keys['KeyE']) {
+            // interact
+            for (const ent of sprites) {
+                if (ent.lootable && manhattanDistance(ent, player) <= 1.5 && !ent.looted) {
+                    console.log('looted')
+                    ent.looted = true;
+                    if (lootedAnimation[ent.mapNum]) ent.tex = lootedAnimation[ent.mapNum];
+                    let newItem;
+                    if (ent.mapNum == 6) {
+                        if (Math.random() < (player.luck * 0.1)) newItem = generateLoot();
+                        else newItem = generateConsumable();
+                    } else if (ent.mapNum == 10) {
+                        if (Math.random() < player.luck) newItem = generateLoot();
+                        else newItem = generateConsumable();
+                        player.gold += Math.floor(Math.random() * 20 * (1 + player.luck))
+                    }
 
-    if (keys['KeyD'] && (document.pointerLockElement === screen)) {
-        const dx = Math.cos(player.angle + toRad(90));
-        const dy = Math.sin(player.angle + toRad(90));
-        let tempX = player.x + dx * player.speed;
-        let tempY = player.y + dy * player.speed;
+                    let existingItem = false;
+                    for (let item of player.inventory) {
+                        if (item.name == newItem.name) {
+                            item.count++;
+                            existingItem = true;
+                            break;
+                        }
+                    }
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
-            player.x = tempX;
-            player.y = tempY
+                    if (!existingItem) player.inventory.push(newItem);
+
+                    myAssets.getCoin.play();
+                }
+            }
         }
 
-        changed = true;
-    }
+        if (keys['ArrowUp'] || keys['KeyW']) {
+            const dx = Math.cos(player.angle);
+            const dy = Math.sin(player.angle);
+            let tempX = player.x + dx * player.speed;
+            let tempY = player.y + dy * player.speed;
 
-    if (keys['KeyA'] && (document.pointerLockElement === screen)) {
-        const dx = Math.cos(player.angle + toRad(90));
-        const dy = Math.sin(player.angle + toRad(90));
-        let tempX = player.x - dx * player.speed;
-        let tempY = player.y - dy * player.speed;
+            if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
+                player.x = tempX;
+                player.y = tempY
+            }
 
-        if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
-            player.x = tempX;
-            player.y = tempY
+            changed = true;
         }
 
-        changed = true;
-    }
+        if (keys['ArrowDown'] || keys['KeyS']) {
+            const dx = Math.cos(player.angle);
+            const dy = Math.sin(player.angle);
+            let tempX = player.x - dx * player.speed;
+            let tempY = player.y - dy * player.speed;
 
-    if (lastKeys['KeyT'] && (!keys['KeyT']) && (document.pointerLockElement === screen)) {
-        lastKeys['KeyT'] = keys['KeyT'];
-        if (!musicPlaying) myAssets.stormTheKeep.play();
-        else myAssets.stormTheKeep.pause();
-        musicPlaying = !musicPlaying;
-    }
+            if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
+                player.x = tempX;
+                player.y = tempY
+            }
 
-    if (changed || animationPlaying) displayScreen();
+            changed = true;
+        }
+
+        if (keys['KeyD']) {
+            const dx = Math.cos(player.angle + toRad(90));
+            const dy = Math.sin(player.angle + toRad(90));
+            let tempX = player.x + dx * player.speed;
+            let tempY = player.y + dy * player.speed;
+
+            if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
+                player.x = tempX;
+                player.y = tempY
+            }
+
+            changed = true;
+        }
+
+        if (keys['KeyA']) {
+            const dx = Math.cos(player.angle + toRad(90));
+            const dy = Math.sin(player.angle + toRad(90));
+            let tempX = player.x - dx * player.speed;
+            let tempY = player.y - dy * player.speed;
+
+            if (!outOfBounds(Math.floor(tempY), mapSize) && !outOfBounds(Math.floor(tempX), mapSize) && levelMap[Math.floor(tempY)][Math.floor(tempX)] <= 0) {
+                player.x = tempX;
+                player.y = tempY
+            }
+
+            changed = true;
+        }
+
+        if (lastKeys['KeyT'] && (!keys['KeyT'])) {
+            lastKeys['KeyT'] = keys['KeyT'];
+            if (!musicPlaying) myAssets.stormTheKeep.play();
+            else myAssets.stormTheKeep.pause();
+            musicPlaying = !musicPlaying;
+        }
+
+        if (levelMap[Math.floor(player.y)][Math.floor(player.x)] === -2) nextLevel();
+
+        if (changed || animationPlaying) displayScreen();
+    }
   
   requestAnimationFrame(update);
 }
