@@ -21,6 +21,7 @@ const fgColor = '#5f5';
 
 const uiGold = document.getElementById('goldCount');
 const uiHealth = document.getElementById('healthCount');
+const uiSpells = document.getElementById('spellCount');
 
 const uiInv = document.getElementById('invDisplay');
 
@@ -192,6 +193,12 @@ const player = {
     luck : 0.1,
     shootAni : null,
     gold: 0,
+    spellSlots: 1,
+    spellsUsed: 0,
+    spellRechargeRate: 30,
+    summons: 1,
+    summonMods: {},
+    fireRate: 1,
     inventory: [],
     equipped: [],
     checkSlots () {
@@ -225,6 +232,10 @@ function placePlayer(map, size) {
 }
 
 // Lootable and Equppable object definition
+
+// Ideas for other types of lootables:
+// Spells (and maybe player only has so many spell slots that fill so fast)
+// Weapons (including whether they are Melee, Ranged, or Summoner)
 
 class Lootable {
     constructor (type, name, image, stats={}, equippable=true, consumable=false) {
@@ -266,6 +277,7 @@ class Lootable {
         for (let effect in this.stats) {
             playerObject[effect] += this.stats[effect];
             playerObject[effect] = Math.max(playerObject[effect], 0.01);
+            if (effect == 'spellSlots') playerObject.spellSlots = Math.min(playerObject.spellSlots, 5);
         }
     }
 
@@ -273,6 +285,7 @@ class Lootable {
         for (let effect in this.stats) {
             playerObject[effect] -= this.stats[effect];
             playerObject[effect] = Math.max(playerObject[effect], 0.01);
+            if (effect == 'spellSlots') playerObject.spellSlots = Math.max(playerObject.spellSlots, 1);
         }
     }
 }
@@ -281,16 +294,15 @@ const modifiers = [
 ["Unnecessary Acrobatics", { speed: 0.08, luck: -0.02 }],
 ["Aggressive Sarcasm", { luck: 0.05, strength: -0.01 }],
 ["Dramatic Poses", { luck: 0.01 }],
-["Caffeinated Jitters", { speed: 0.07, health: -0.05 }],
 ["Questionable Fashion Choices", { luck: -0.03, strength: 0.04 }],
 ["Existential Dread", { speed: -0.10, health: 0.02 }],
 ["Accidental Competence", { luck: 0.12 }],
 ["Swift Currents", { speed: 0.04 }],
 ["The Iron Bastion", { strength: 0.1, speed: -0.05 }],
 ["Eternal Vitality", { health: 0.15 }],
-["The Forsaken", { luck: -0.1, strength: 0.15 }],
-["Sharpened Focus", { luck: 0.05, strength: 0.05 }],
-["Waning Shadows", { speed: 0.07, health: -0.02 }],
+["The Forsaken", { luck: -0.1, strength: 0.15, spellSlots: 1 }],
+["Sharpened Focus", { luck: 0.05, strength: 0.05, spellSlots: 1 }],
+["Waning Shadows", { speed: 0.07, health: -0.02, luck: 0.05 }],
 ["The Titan", { strength: 0.2, speed: -0.05 }],
 ["Primal Grace", { speed: 0.02, health: 0.05 }]
 ];
@@ -314,8 +326,9 @@ const potionModifiers = [
     ["Dumb Luck", { luck: 0.40, speed: -0.15 }],
     ["Second Wind", { health: 0.35 }],
     ["Berzerker Spirit", { strength: 0.40, health: -0.20 }],
-    ["Hyper-Focus", { luck: 0.20, strength: 0.15 }],
-    ["Ghostly Pace", { speed: 0.15, strength: -0.10 }]
+    ["Hyper-Focus", { luck: 0.20, strength: 0.15, spellRechargeRate: -10 }],
+    ["Ghostly Pace", { speed: 0.15, strength: -0.10 }],
+    ["Mage's Blessing", { spellSlots: 2, spellRechargeRate: -20 }],
 ];
 
 const generateLoot = () => {
@@ -789,6 +802,7 @@ const updateEnemy = (entity) => {
             const dx = Math.cos(angleToPlayer) * 0.5;
             const dy = Math.sin(angleToPlayer) * 0.5;
             addProjectile(entity.x + dx, entity.y + dy, angleToPlayer, 2, myAssets.blueEnergy);
+            myAssets.shootSound.play();
         }
     }
 
@@ -857,7 +871,7 @@ const lineOfSight = (p1, p2, map) => {
     }
 
     // Wall check — anything non-zero is a wall
-    if (map[y0][x0] !== 0 || steps > maxSteps * (1+player.luck)) {
+    if (map[y0][x0] !== 0 || steps > maxSteps * Math.max(1-player.luck, 0.4)) {
       return false;
     }
 
@@ -1275,6 +1289,13 @@ function displayUI() {
     const healthLevels = ['Robust', 'Fair', 'Declining', 'Weak', 'In Peril'];
     uiGold.textContent = `◍:  ${player.gold}`;
     uiHealth.textContent = `❤:  ${healthLevels[0]}`;
+    let spellText = '';
+    for (let i = 0; i < 5; i++) {
+        if (i < player.spellSlots-player.spellsUsed)
+            spellText += '🕮 '
+        else spellText += '📕︎ '; 
+    }
+    uiSpells.textContent = `${spellText}`;
 
     for (const ent of sprites) {
         if (ent.lootable && !ent.looted && ent.dist <= 1.5) {
@@ -1387,12 +1408,13 @@ async function init() {
         loadImage('./assets/woodWall.png'),
     ]);
 
-    myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), 
+    myAssets = { wall, tileWall, barrel, lamp, pot, arm, shootSound: new Audio('./assets/potBreak.mp3'), stormTheKeep: new Audio('./assets/stormTheKeep.mp3'), desidere: new Audio('./assets/Desidere.mp3'),
         mountainSkybox, tube, bannerWall, potionTable, eldritchBlast, guardWalk, guardIdle, guardHurt, guardAttack, tileFloor, wizardWalk, wizardIdle, wizardHurt, wizardAttack,
     blueEnergy, stairsDown, goldPile, getCoin: new Audio('./assets/getCoin.mp3'), skybox: mountainSkybox , cavernSkybox, chestClosed, chestOpen, potionTableEmpty,
     pillar, lavaCavern, bookshelf, mapWall, woodWall};
 
     myAssets.stormTheKeep.loop = true;
+    myAssets.desidere.loop = true;
 
     allLevels = await fetchJsonData('./scripts/fpsLevels.json');
 
@@ -1517,6 +1539,10 @@ function update() {
             }
         }
 
+        if (player.spellsUsed > 0 && tick % (30 * player.spellRechargeRate) == 0) {
+            player.spellsUsed --;
+        }
+
         let tempEntities = [...entities];
 
         tempEntities.forEach((entity) => {
@@ -1621,8 +1647,8 @@ function update() {
 
         if (lastKeys['KeyT'] && (!keys['KeyT'])) {
             lastKeys['KeyT'] = keys['KeyT'];
-            if (!musicPlaying) myAssets.stormTheKeep.play();
-            else myAssets.stormTheKeep.pause();
+            if (!musicPlaying) myAssets.desidere.play();
+            else myAssets.desidere.pause();
             musicPlaying = !musicPlaying;
         }
 

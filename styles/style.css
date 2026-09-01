@@ -176,8 +176,8 @@ aside .card {
     height: fit-content;
 }
 
-#goldCount, #healthCount {
-    margin: 0.5rem 5rem;
+#goldCount, #healthCount, #spellCount {
+    margin: 0.5rem 3rem;
     font-weight: bold;
     font-size: large;
 }
